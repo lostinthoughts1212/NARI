@@ -1,0 +1,137 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+:root {
+  --bg-app: #F5EBE0;
+  --bg-surface: #F9DBBD;
+  --bg-card: #F9DBBD;
+  --primary: #A53860;
+  --primary-hover: #8c2e50;
+  --secondary: #FFA5AB;
+  --secondary-hover: #f78d94;
+  --text-main: #450920;
+  --text-muted: #6b1d3d;
+  --border-subtle: #f0c39c;
+}
+
+body {
+  background-color: #F5EBE0;
+  color: #450920;
+  font-family: var(--font-sans);
+}
+
+/* Light Theme utilities for NARI Intelligence Dashboard */
+@layer utilities {
+  .bg-app-bg {
+    background-color: #F5EBE0;
+  }
+  .bg-app-surface {
+    background-color: #F9DBBD;
+  }
+  .bg-app-primary {
+    background-color: #A53860;
+  }
+  .bg-app-secondary {
+    background-color: #FFA5AB;
+  }
+  .text-app-main {
+    color: #450920;
+  }
+  .text-app-primary {
+    color: #A53860;
+  }
+  .border-app-subtle {
+    border-color: #f0c39c;
+  }
+  
+  .glow-primary {
+    box-shadow: 0 10px 25px -5px rgba(165, 56, 96, 0.25);
+  }
+  .glow-secondary {
+    box-shadow: 0 10px 25px -5px rgba(255, 165, 171, 0.35);
+  }
+
+  .glass-card {
+    background-color: #F9DBBD;
+    border: 1px solid #f0c39c;
+    box-shadow: 0 4px 16px -2px rgba(69, 9, 32, 0.06);
+    border-radius: 16px;
+  }
+  .glass-card-hover:hover {
+    background-color: #f7d4b2;
+    border-color: #A53860;
+    box-shadow: 0 8px 24px -4px rgba(165, 56, 96, 0.15);
+  }
+
+  .btn-primary {
+    background-color: #A53860;
+    color: #ffffff;
+    font-weight: 700;
+    transition: all 0.2s ease;
+  }
+  .btn-primary:hover {
+    background-color: #8c2e50;
+  }
+
+  .btn-secondary {
+    background-color: #FFA5AB;
+    color: #450920;
+    font-weight: 700;
+    transition: all 0.2s ease;
+  }
+  .btn-secondary:hover {
+    background-color: #f78d94;
+  }
+}
+
+/* Custom scrollbar for theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F5EBE0;
+}
+::-webkit-scrollbar-thumb {
+  background: #A53860;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8c2e50;
+}
+
+@keyframes pulse-slow {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50% { transform: scale(1.03); opacity: 1; }
+}
+
+@keyframes signal-pulse {
+  0% { transform: scale(0.96); opacity: 0.5; box-shadow: 0 0 0 0 rgba(165, 56, 96, 0.6); }
+  70% { transform: scale(1.06); opacity: 0.9; box-shadow: 0 0 0 10px rgba(165, 56, 96, 0); }
+  100% { transform: scale(0.96); opacity: 0.5; box-shadow: 0 0 0 0 rgba(165, 56, 96, 0); }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 4s infinite ease-in-out;
+}
+
+.animate-signal {
+  animation: signal-pulse 2s infinite ease-in-out;
+}
+
+/* ── Leaflet overrides ───────────────────────────────────────────────────────── */
+/* Ensure Leaflet map layers sit above the page background but below modal overlays */
+.leaflet-pane           { z-index: 10 !important; }
+.leaflet-tile-pane      { z-index: 11 !important; }
+.leaflet-overlay-pane   { z-index: 12 !important; }
+.leaflet-marker-pane    { z-index: 13 !important; }
+.leaflet-tooltip-pane   { z-index: 14 !important; }
+.leaflet-popup-pane     { z-index: 15 !important; }
+.leaflet-control        { z-index: 20 !important; }

@@ -1,0 +1,6 @@
+{
+  "name": "NARI Safety",
+  "description": "An IoT wearable and AI-powered mobile safety platform for women, engineered to detect distress automatically, alert instantly, and guide users along safer routes.",
+  "requestFramePermissions": ["geolocation", "microphone", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

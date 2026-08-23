@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  valhalla:
+    image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+    container_name: valhalla
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./custom_files:/custom_files
+    environment:
+      - build_elevation=False
+      - build_admins=False
+      - build_time_zones=False
+      - serve_tiles=True
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  backend:
+    build:
+      context: ./backend
+    container_name: navsys_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./bhubaneswar_women_safe_route_synthetic_dataset.csv:/bhubaneswar_women_safe_route_synthetic_dataset.csv
+    depends_on:
+      valhalla:
+        condition: service_healthy
+    environment:
+      - VALHALLA_URL=http://valhalla:8002/route
+      - CSV_PATH=/bhubaneswar_women_safe_route_synthetic_dataset.csv
