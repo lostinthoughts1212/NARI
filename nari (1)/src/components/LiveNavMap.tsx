@@ -319,7 +319,7 @@ export default function LiveNavMap({
     km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(2)} km`;
 
   return (
-    <div className="flex flex-col h-full min-h-[520px] rounded-2xl overflow-hidden border border-[#f0c39c] shadow-sm bg-[#0f0814]">
+    <div className="flex flex-col rounded-2xl overflow-hidden border border-[#f0c39c] shadow-sm bg-[#0f0814]" style={{ minHeight: '520px', height: 'clamp(520px, 75vh, 780px)' }}>
 
       {/* Leaflet cursor + animation overrides */}
       <style>{`
@@ -377,10 +377,10 @@ export default function LiveNavMap({
       </div>
 
       {/* ── MAP + SIDE PANEL ── */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
 
         {/* MAP CANVAS */}
-        <div className="relative flex-1 min-w-0">
+        <div className="relative flex-1 min-w-0" style={{ minHeight: '300px' }}>
           <MapContainer
             center={BBSR_CENTER}
             zoom={13}
@@ -487,7 +487,7 @@ export default function LiveNavMap({
         </div>
 
         {/* ── RIGHT CONTROL PANEL ── */}
-        <div className="w-[240px] shrink-0 bg-[#1e0a14] border-l border-[#A53860]/20 overflow-y-auto flex flex-col gap-3 p-3.5">
+        <div className="md:w-[240px] shrink-0 bg-[#1e0a14] border-t md:border-t-0 md:border-l border-[#A53860]/20 overflow-y-auto flex flex-col gap-3 p-3.5">
 
           {/* Legend */}
           <div className="flex flex-wrap gap-x-3 gap-y-1 pb-2 border-b border-[#A53860]/20">

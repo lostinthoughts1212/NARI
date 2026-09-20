@@ -135,3 +135,12 @@ body {
 .leaflet-tooltip-pane   { z-index: 14 !important; }
 .leaflet-popup-pane     { z-index: 15 !important; }
 .leaflet-control        { z-index: 20 !important; }
+
+/* ── Utility: hide scrollbar while keeping scroll functionality ── */
+.scrollbar-none {
+  scrollbar-width: none;        /* Firefox */
+  -ms-overflow-style: none;     /* IE / Edge */
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;                /* Chrome / Safari */
+}

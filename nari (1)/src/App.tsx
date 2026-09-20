@@ -185,34 +185,52 @@ export default function App() {
       <div className="absolute bottom-0 right-1/4 w-[600px] h-[400px] bg-[#FFA5AB]/[0.1] blur-[160px] rounded-full pointer-events-none"></div>
 
       {/* SYSTEM HEADER BAR */}
-      <header className="sticky top-0 z-50 border-b border-[#f0c39c] bg-[#F5EBE0]/95 backdrop-blur-md px-6 py-4 md:px-12 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+      <header className="sticky top-0 z-50 border-b border-[#f0c39c] bg-[#F5EBE0]/95 backdrop-blur-md px-4 py-3 md:px-12 md:py-4 flex items-center justify-between gap-3 shadow-sm">
         
         {/* Brand NARI with pulse indicator */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center space-x-2">
-            <div className={`w-3 h-3 rounded-full ${isSOSActive ? 'bg-[#A53860] animate-ping' : 'bg-[#A53860] animate-pulse glow-primary'}`}></div>
-            <span className="text-xl md:text-2xl font-serif tracking-tight italic text-[#450920] flex items-baseline gap-1.5 font-bold">
-              NARI<span className="text-[10px] uppercase tracking-[0.25em] font-mono not-italic text-[#A53860] font-bold">System</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center space-x-2 shrink-0">
+            <div className={`w-2.5 h-2.5 rounded-full ${isSOSActive ? 'bg-[#A53860] animate-ping' : 'bg-[#A53860] animate-pulse glow-primary'}`}></div>
+            <span className="text-lg md:text-2xl font-serif tracking-tight italic text-[#450920] flex items-baseline gap-1.5 font-bold">
+              NARI<span className="text-[9px] uppercase tracking-[0.25em] font-mono not-italic text-[#A53860] font-bold">System</span>
             </span>
           </div>
           <div className="hidden md:block h-6 w-[1px] bg-[#f0c39c]"></div>
           <p className="hidden md:block text-[10px] uppercase tracking-[0.16em] text-[#450920] font-bold">Next-generation AI powered Route Investigation</p>
         </div>
 
-        {/* Status indicator pill & User badge */}
-        <div className="flex items-center gap-3">
+        {/* Right side: Panic button (mobile) + user badge + logout */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Panic trigger — visible on mobile in header */}
+          <button 
+            onClick={() => {
+              if (isSOSActive) {
+                handleManualSOSCancel();
+              } else {
+                handleManualSOSTrigger();
+              }
+            }} 
+            className={`md:hidden rounded-full px-3 py-1.5 text-[9px] uppercase tracking-widest font-bold font-mono transition-all border shadow-sm cursor-pointer ${
+              isSOSActive
+                ? 'bg-[#A53860] border-[#A53860] text-white animate-pulse'
+                : 'bg-[#FFA5AB] border-[#f0c39c] text-[#450920]'
+            }`}
+          >
+            {isSOSActive ? 'CANCEL' : 'SOS'}
+          </button>
+
           {currentUser && (
-            <div className="flex items-center gap-2 px-3.5 py-1.5 bg-[#F9DBBD] border border-[#f0c39c] rounded-full shadow-sm">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#F9DBBD] border border-[#f0c39c] rounded-full shadow-sm">
               <div className="w-4 h-4 rounded-full bg-[#A53860]/20 flex items-center justify-center">
                 <User className="w-2.5 h-2.5 text-[#A53860]" />
               </div>
-              <span className="text-[10px] font-mono text-[#450920] font-bold">{currentUser}</span>
+              <span className="text-[10px] font-mono text-[#450920] font-bold max-w-[100px] truncate">{currentUser}</span>
             </div>
           )}
 
           <button
             onClick={handleLogout}
-            className="px-3.5 py-1.5 bg-[#FFA5AB] hover:bg-[#f78d94] text-[#450920] border border-[#f0c39c] rounded-xl transition-all flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider cursor-pointer shadow-sm font-bold"
+            className="px-3 py-1.5 bg-[#FFA5AB] hover:bg-[#f78d94] text-[#450920] border border-[#f0c39c] rounded-xl transition-all flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wider cursor-pointer shadow-sm font-bold"
             title="Log out of Secure Console"
           >
             <LogOut className="w-3.5 h-3.5" />
@@ -222,113 +240,121 @@ export default function App() {
 
       </header>
 
-      {/* SYSTEM SUB-NAVIGATION TABS BAR */}
-      <div className="border-b border-[#f0c39c] bg-[#F9DBBD]/60 py-2.5 px-6 md:px-12 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap gap-1.5 bg-[#F5EBE0] p-1.5 rounded-full border border-[#f0c39c] shadow-sm">
-          {/* Navigation tab */}
-          <button
-            onClick={() => setActiveTab('navigation')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all cursor-pointer ${
-              activeTab === 'navigation'
-                ? 'bg-[#A53860] text-white shadow-sm'
-                : 'text-[#450920] hover:bg-[#FFA5AB]/40'
-            }`}
-          >
-            <Compass className="w-3.5 h-3.5" />
-            Route Navigation
-          </button>
+      {/* SYSTEM SUB-NAVIGATION TABS BAR — horizontally scrollable on mobile */}
+      <div className="border-b border-[#f0c39c] bg-[#F9DBBD]/60">
+        {/* Scrollable tab strip */}
+        <div className="overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-1.5 px-3 md:px-6 py-2 min-w-max">
+            {/* Navigation tab */}
+            <button
+              onClick={() => setActiveTab('navigation')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'navigation'
+                  ? 'bg-[#A53860] text-white shadow-sm'
+                  : 'text-[#450920] hover:bg-[#FFA5AB]/40'
+              }`}
+            >
+              <Compass className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Route Navigation</span>
+              <span className="sm:hidden">Route</span>
+            </button>
 
-          {/* SOS Tab */}
-          <button
-            onClick={() => setActiveTab('sos')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all cursor-pointer ${
-              activeTab === 'sos'
-                ? 'bg-[#A53860] text-white shadow-sm'
-                : 'text-[#450920] hover:bg-[#FFA5AB]/40'
-            }`}
-          >
-            <Siren className="w-3.5 h-3.5" />
-            SOS Dispatch
-          </button>
+            {/* SOS Tab */}
+            <button
+              onClick={() => setActiveTab('sos')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'sos'
+                  ? 'bg-[#A53860] text-white shadow-sm'
+                  : 'text-[#450920] hover:bg-[#FFA5AB]/40'
+              }`}
+            >
+              <Siren className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">SOS Dispatch</span>
+              <span className="sm:hidden">SOS</span>
+            </button>
 
-          {/* Wearable Tab */}
-          <button
-            onClick={() => setActiveTab('wearable')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all cursor-pointer ${
-              activeTab === 'wearable'
-                ? 'bg-[#A53860] text-white shadow-sm'
-                : 'text-[#450920] hover:bg-[#FFA5AB]/40'
-            }`}
-          >
-            <Activity className="w-3.5 h-3.5" />
-            Wearable Hub
-          </button>
+            {/* Wearable Tab */}
+            <button
+              onClick={() => setActiveTab('wearable')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'wearable'
+                  ? 'bg-[#A53860] text-white shadow-sm'
+                  : 'text-[#450920] hover:bg-[#FFA5AB]/40'
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Wearable Hub</span>
+              <span className="sm:hidden">Wearable</span>
+            </button>
 
-          {/* Feedback & Complaints Tab */}
-          <button
-            onClick={() => setActiveTab('feedback')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all cursor-pointer ${
-              activeTab === 'feedback'
-                ? 'bg-[#A53860] text-white shadow-sm'
-                : 'text-[#450920] hover:bg-[#FFA5AB]/40'
-            }`}
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-            Feedback & Complaints
-          </button>
+            {/* Feedback & Complaints Tab */}
+            <button
+              onClick={() => setActiveTab('feedback')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'feedback'
+                  ? 'bg-[#A53860] text-white shadow-sm'
+                  : 'text-[#450920] hover:bg-[#FFA5AB]/40'
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Feedback & Complaints</span>
+              <span className="sm:hidden">Feedback</span>
+            </button>
 
-          {/* Profile Tab */}
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all cursor-pointer ${
-              activeTab === 'profile'
-                ? 'bg-[#A53860] text-white shadow-sm'
-                : 'text-[#450920] hover:bg-[#FFA5AB]/40'
-            }`}
-          >
-            <User className="w-3.5 h-3.5" />
-            User Profile
-          </button>
+            {/* Profile Tab */}
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'profile'
+                  ? 'bg-[#A53860] text-white shadow-sm'
+                  : 'text-[#450920] hover:bg-[#FFA5AB]/40'
+              }`}
+            >
+              <User className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">User Profile</span>
+              <span className="sm:hidden">Profile</span>
+            </button>
 
-          {/* Analytical Strategy Doc */}
-          <button
-            onClick={() => setActiveTab('document')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all cursor-pointer ${
-              activeTab === 'document'
-                ? 'bg-[#A53860] text-white shadow-sm'
-                : 'text-[#450920] hover:bg-[#FFA5AB]/40'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            Strategic Analysis
-          </button>
-        </div>
+            {/* Analytical Strategy Doc */}
+            <button
+              onClick={() => setActiveTab('document')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-[10px] uppercase tracking-widest font-bold transition-all cursor-pointer whitespace-nowrap ${
+                activeTab === 'document'
+                  ? 'bg-[#A53860] text-white shadow-sm'
+                  : 'text-[#450920] hover:bg-[#FFA5AB]/40'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">Strategic Analysis</span>
+              <span className="sm:hidden">Analysis</span>
+            </button>
 
-        {/* Global Instant Alarm Button */}
-        <div className="flex items-center gap-4">
-          <div className="hidden lg:flex items-center gap-2 bg-[#F5EBE0] border border-[#f0c39c] px-3 py-1.5 rounded-full text-[9px] font-mono uppercase tracking-wider shadow-sm">
-            <span className={`w-1.5 h-1.5 rounded-full ${isSOSActive ? 'bg-[#A53860] animate-pulse' : 'bg-[#A53860]'}`}></span>
-            <span className="text-[#450920] font-bold">
-              {isSOSActive ? 'Crisis Broadcast Active' : 'Sensor Loop Secured'}
-            </span>
+            {/* Panic trigger — desktop only (mobile version is in header) */}
+            <div className="hidden md:flex items-center gap-3 ml-4 pl-4 border-l border-[#f0c39c]">
+              <div className="hidden lg:flex items-center gap-2 bg-[#F5EBE0] border border-[#f0c39c] px-3 py-1.5 rounded-full text-[9px] font-mono uppercase tracking-wider shadow-sm">
+                <span className={`w-1.5 h-1.5 rounded-full ${isSOSActive ? 'bg-[#A53860] animate-pulse' : 'bg-[#A53860]'}`}></span>
+                <span className="text-[#450920] font-bold">
+                  {isSOSActive ? 'Crisis Broadcast Active' : 'Sensor Loop Secured'}
+                </span>
+              </div>
+              <button 
+                onClick={() => {
+                  if (isSOSActive) {
+                    handleManualSOSCancel();
+                  } else {
+                    handleManualSOSTrigger();
+                  }
+                }} 
+                className={`rounded-full px-5 py-2 text-[9px] uppercase tracking-widest font-bold font-mono transition-all border shadow-sm cursor-pointer ${
+                  isSOSActive
+                    ? 'bg-[#A53860] border-[#A53860] text-white animate-pulse'
+                    : 'bg-[#FFA5AB] border-[#f0c39c] text-[#450920] hover:bg-[#A53860] hover:text-white'
+                }`}
+              >
+                {isSOSActive ? 'CANCEL ALARM' : 'PANIC TRIGGER'}
+              </button>
+            </div>
           </div>
-
-          <button 
-            onClick={() => {
-              if (isSOSActive) {
-                handleManualSOSCancel();
-              } else {
-                handleManualSOSTrigger();
-              }
-            }} 
-            className={`rounded-full px-5 py-2 text-[9px] uppercase tracking-widest font-bold font-mono transition-all border shadow-sm cursor-pointer ${
-              isSOSActive
-                ? 'bg-[#A53860] border-[#A53860] text-white animate-pulse'
-                : 'bg-[#FFA5AB] border-[#f0c39c] text-[#450920] hover:bg-[#A53860] hover:text-white'
-            }`}
-          >
-            {isSOSActive ? 'CANCEL ALARM' : 'PANIC TRIGGER'}
-          </button>
         </div>
       </div>
 
