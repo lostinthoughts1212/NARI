@@ -402,7 +402,7 @@ export default function App() {
         {activeTab === 'navigation' && (
           <div className="space-y-6" id="navigation-tab-container">
             {/* Context bar */}
-            <div className="p-6 bg-[#F9DBBD] border border-[#f0c39c] shadow-sm rounded-2xl flex flex-wrap justify-between items-center gap-4">
+            <div className="p-4 sm:p-6 bg-[#F9DBBD] border border-[#f0c39c] shadow-sm rounded-2xl flex flex-wrap justify-between items-center gap-3 sm:gap-4">
               <div className="flex items-start gap-3 max-w-2xl">
                 <div className="p-2 rounded-xl bg-[#A53860]/15 text-[#A53860] shrink-0 mt-0.5">
                   <Compass className="w-4 h-4 animate-spin-slow" />

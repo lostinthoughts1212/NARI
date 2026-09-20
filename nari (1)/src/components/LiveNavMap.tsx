@@ -319,7 +319,7 @@ export default function LiveNavMap({
     km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(2)} km`;
 
   return (
-    <div className="flex flex-col rounded-2xl overflow-hidden border border-[#f0c39c] shadow-sm bg-[#0f0814]" style={{ minHeight: '520px', height: 'clamp(520px, 75vh, 780px)' }}>
+    <div className="flex flex-col rounded-2xl overflow-hidden border border-[#f0c39c] shadow-sm bg-[#0f0814] md:h-[clamp(540px,75vh,780px)]">
 
       {/* Leaflet cursor + animation overrides */}
       <style>{`
@@ -376,11 +376,11 @@ export default function LiveNavMap({
         </div>
       </div>
 
-      {/* ── MAP + SIDE PANEL ── */}
-      <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden">
+      {/* ── MAP + CONTROL PANEL (stacked on mobile, side-by-side on desktop) ── */}
+      <div className="flex flex-col md:flex-row flex-1 min-h-0 md:overflow-hidden">
 
         {/* MAP CANVAS */}
-        <div className="relative flex-1 min-w-0" style={{ minHeight: '300px' }}>
+        <div className="relative w-full h-[350px] sm:h-[420px] md:h-auto md:flex-1 min-w-0 shrink-0 md:shrink">
           <MapContainer
             center={BBSR_CENTER}
             zoom={13}
@@ -468,6 +468,39 @@ export default function LiveNavMap({
             {destination && <Marker position={[destination.latitude, destination.longitude]} icon={destIcon}   />}
           </MapContainer>
 
+          {/* Quick Floating Action: Use My Location (top-right on mobile) */}
+          <button
+            onClick={handleUseMyLocation}
+            disabled={locLoading}
+            className="md:hidden absolute top-3 right-3 z-[1000] flex items-center gap-1.5 px-3 py-1.5 bg-[#1e0a14]/90 hover:bg-[#A53860] border border-[#FFA5AB]/50 text-white rounded-full text-[11px] font-bold shadow-lg backdrop-blur-sm transition-all cursor-pointer disabled:opacity-60"
+            title="Use My Location"
+          >
+            {locLoading ? (
+              <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+            ) : (
+              <span>📍</span>
+            )}
+            <span>My Loc</span>
+          </button>
+
+          {/* Quick Floating Action: Find Safe Route (bottom-center on mobile when ready) */}
+          {origin && destination && (
+            <div className="md:hidden absolute bottom-4 inset-x-0 z-[1000] flex justify-center px-4 pointer-events-none">
+              <button
+                onClick={handleGetRoute}
+                disabled={loading}
+                className="pointer-events-auto flex items-center gap-2 px-5 py-2.5 bg-[#A53860] hover:bg-[#8c2e50] border-2 border-[#FFA5AB] text-white rounded-full text-xs font-bold shadow-2xl transition-all cursor-pointer animate-bounce"
+              >
+                {loading ? (
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                ) : (
+                  <span>🧭</span>
+                )}
+                <span>Find Safe Route</span>
+              </button>
+            </div>
+          )}
+
           {/* Pin mode instruction overlay */}
           {isPinMode && (
             <div className="absolute inset-x-0 top-3 z-[1000] flex justify-center pointer-events-none">
@@ -486,42 +519,82 @@ export default function LiveNavMap({
           )}
         </div>
 
-        {/* ── RIGHT CONTROL PANEL ── */}
-        <div className="md:w-[240px] shrink-0 bg-[#1e0a14] border-t md:border-t-0 md:border-l border-[#A53860]/20 overflow-y-auto flex flex-col gap-3 p-3.5">
+        {/* ── CONTROL PANEL (visible side on desktop, stacked below on mobile) ── */}
+        <div className="w-full md:w-[260px] shrink-0 bg-[#1e0a14] border-t md:border-t-0 md:border-l border-[#A53860]/20 flex flex-col gap-3 p-3.5 md:overflow-y-auto">
+
+          {/* Panel Header */}
+          <div className="flex items-center justify-between pb-1 border-b border-[#A53860]/20">
+            <span className="text-white text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-1.5">
+              <span>⚙️</span> Map Options
+            </span>
+            <span className="text-[#FFA5AB] text-[10px] font-mono">
+              {origin && destination ? 'Ready to route' : tapMode === 'origin' ? '1. Tap start' : '2. Tap end'}
+            </span>
+          </div>
 
           {/* Legend */}
           <div className="flex flex-wrap gap-x-3 gap-y-1 pb-2 border-b border-[#A53860]/20">
             {[
               { color: '#10B981', label: 'Start' },
               { color: '#E91E8C', label: 'End' },
-              { color: '#EF4444', label: 'Danger Zone', opacity: '70' },
+              { color: '#EF4444', label: 'Danger Zone' },
               { color: '#F59E0B', label: 'Hazard Pin' },
             ].map(({ color, label }) => (
               <div key={label} className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: color }} />
+                <span className="w-2.5 h-2.5 rounded-full inline-block shrink-0" style={{ backgroundColor: color }} />
                 <span className="text-[#c4a0b0] text-[10px] font-mono">{label}</span>
               </div>
             ))}
           </div>
 
           {/* Origin → Destination pills */}
-          <div className="flex items-center gap-2 bg-[#2a1020] border border-[#A53860]/30 rounded-xl px-3 py-2.5">
-            <span className="w-2 h-2 rounded-full bg-[#10B981] shrink-0 inline-block" />
-            <span className="text-[11px] font-mono text-white flex-1 truncate">
-              {origin ? `${origin.latitude.toFixed(5)}, ${origin.longitude.toFixed(5)}` : 'Click map to set start'}
-            </span>
-          </div>
-          <div className="w-0.5 h-2 bg-[#A53860]/30 mx-[15px]" />
-          <div className="flex items-center gap-2 bg-[#2a1020] border border-[#A53860]/30 rounded-xl px-3 py-2.5">
-            <span className="w-2 h-2 rounded-full bg-[#E91E8C] shrink-0 inline-block" />
-            <span className="text-[11px] font-mono text-white flex-1 truncate">
-              {destination ? `${destination.latitude.toFixed(5)}, ${destination.longitude.toFixed(5)}` : 'Click map to set destination'}
-            </span>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2 bg-[#2a1020] border border-[#A53860]/30 rounded-xl px-3 py-2">
+              <span className="w-2 h-2 rounded-full bg-[#10B981] shrink-0 inline-block" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] font-mono text-[#c4a0b0] uppercase tracking-wider">Start Point</p>
+                <p className="text-[11px] font-mono text-white truncate">
+                  {origin ? `${origin.latitude.toFixed(5)}, ${origin.longitude.toFixed(5)}` : 'Click map or use "My Loc"'}
+                </p>
+              </div>
+              {origin && (
+                <button
+                  type="button"
+                  onClick={() => { setOrigin(null); setRouteCoords([]); setRouteInfo(null); setTapMode('origin'); }}
+                  className="text-[#c4a0b0] hover:text-white text-xs px-1 cursor-pointer"
+                  title="Clear start"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 bg-[#2a1020] border border-[#A53860]/30 rounded-xl px-3 py-2">
+              <span className="w-2 h-2 rounded-full bg-[#E91E8C] shrink-0 inline-block" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] font-mono text-[#c4a0b0] uppercase tracking-wider">Destination</p>
+                <p className="text-[11px] font-mono text-white truncate">
+                  {destination ? `${destination.latitude.toFixed(5)}, ${destination.longitude.toFixed(5)}` : 'Click map to set destination'}
+                </p>
+              </div>
+              {destination && (
+                <button
+                  type="button"
+                  onClick={() => { setDestination(null); setRouteCoords([]); setRouteInfo(null); setTapMode('destination'); }}
+                  className="text-[#c4a0b0] hover:text-white text-xs px-1 cursor-pointer"
+                  title="Clear destination"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Avoid danger toggle */}
-          <div className="flex items-center justify-between py-1">
-            <span className="text-white text-xs font-semibold">🛡 Avoid danger zones</span>
+          <div className="flex items-center justify-between py-1.5 px-2 bg-[#2a1020]/60 rounded-xl border border-[#A53860]/20">
+            <span className="text-white text-xs font-semibold flex items-center gap-1.5">
+              <span>🛡</span> Avoid danger zones
+            </span>
             <button
               onClick={() => setAvoidDanger((v) => !v)}
               className={`relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer shrink-0 ${avoidDanger ? 'bg-[#10B981]' : 'bg-[#4a2535]'}`}
@@ -577,43 +650,52 @@ export default function LiveNavMap({
             </div>
           )}
 
-          {/* Use My Location */}
-          <button
-            onClick={handleUseMyLocation}
-            disabled={locLoading}
-            className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[#A53860]/40 bg-[#A53860]/10 text-[#FFA5AB] text-[12px] font-semibold hover:bg-[#A53860]/20 transition-all cursor-pointer disabled:opacity-60"
-          >
-            {locLoading
-              ? <span className="w-4 h-4 border-2 border-[#FFA5AB] border-t-transparent rounded-full animate-spin inline-block" />
-              : '📍'}
-            Use My Location
-          </button>
+          {/* Action buttons */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={handleUseMyLocation}
+              disabled={locLoading}
+              className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl border border-[#A53860]/40 bg-[#A53860]/10 text-[#FFA5AB] text-[11px] font-semibold hover:bg-[#A53860]/20 transition-all cursor-pointer disabled:opacity-60"
+            >
+              {locLoading ? (
+                <span className="w-3.5 h-3.5 border-2 border-[#FFA5AB] border-t-transparent rounded-full animate-spin inline-block" />
+              ) : (
+                '📍'
+              )}
+              <span className="truncate">My Location</span>
+            </button>
 
-          {/* Find Safe Route */}
+            {(origin || destination) ? (
+              <button
+                onClick={handleClear}
+                className="flex items-center justify-center gap-1 py-2.5 px-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[11px] font-semibold hover:bg-red-500/20 transition-all cursor-pointer"
+              >
+                ✕ Clear All
+              </button>
+            ) : (
+              <div className="flex items-center justify-center text-[10px] font-mono text-[#c4a0b0]/60 text-center py-2.5">
+                Tap map to start
+              </div>
+            )}
+          </div>
+
+          {/* Find Safe Route button */}
           <button
             onClick={handleGetRoute}
             disabled={loading || !origin || !destination}
-            className={`flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold tracking-wide transition-all cursor-pointer ${
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold tracking-wide transition-all cursor-pointer ${
               origin && destination
-                ? 'bg-[#A53860] border border-[#FFA5AB]/60 text-white hover:bg-[#8c2e50]'
+                ? 'bg-[#A53860] border border-[#FFA5AB]/60 text-white hover:bg-[#8c2e50] shadow-lg shadow-[#A53860]/30'
                 : 'bg-[#4a2535] border border-transparent text-[#c4a0b0] cursor-not-allowed'
             }`}
           >
-            {loading
-              ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
-              : '🧭'}
+            {loading ? (
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+            ) : (
+              '🧭'
+            )}
             Find Safe Route
           </button>
-
-          {/* Clear */}
-          {(origin || destination) && (
-            <button
-              onClick={handleClear}
-              className="flex items-center justify-center py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[12px] font-semibold hover:bg-red-500/20 transition-all cursor-pointer"
-            >
-              ✕ Clear All
-            </button>
-          )}
 
           {/* Backend offline help */}
           {!backendOnline && !loadingZones && (

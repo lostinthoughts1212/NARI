@@ -131,7 +131,7 @@ export default function SafeRouteNavigation({
     <div className="grid grid-cols-1 xl:grid-cols-12 gap-4" id="routing-engine-panel">
 
       {/* ── LEAFLET MAP — 9 columns (75%) ── */}
-      <div className="xl:col-span-9 flex flex-col" style={{ minHeight: '680px' }}>
+      <div className="xl:col-span-9 flex flex-col xl:min-h-[680px]">
 
         {/* Context heading */}
         <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
