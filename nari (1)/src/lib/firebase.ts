@@ -52,6 +52,7 @@ export interface LiveJourneySession {
   currentManeuverIndex?: number;
   remainingDistanceKm?: number;
   remainingTimeMin?: number;
+  completedAt?: number;
   startedAt: number;
   updatedAt: number;
 }
@@ -130,13 +131,18 @@ export async function updateLiveLocation(
  */
 export async function updateJourneyStatus(
   journeyId: string,
-  status: JourneyStatus
+  status: JourneyStatus,
+  extra?: { completedAt?: number }
 ): Promise<void> {
   const journeyRef = ref(db, `journeys/${journeyId}`);
-  await update(journeyRef, {
+  const payload: Record<string, any> = {
     status,
     updatedAt: Date.now(),
-  });
+  };
+  if (extra?.completedAt !== undefined) {
+    payload.completedAt = extra.completedAt;
+  }
+  await update(journeyRef, payload);
 }
 
 /**

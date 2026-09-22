@@ -198,16 +198,14 @@ export default function App() {
     return (
       <LandingPage
         onNavigateToLogin={() => setCurrentPage('login')}
-        onLaunchApp={() => setCurrentPage('app')}
       />
     );
   }
 
-  if (currentPage === 'login') {
+  if (currentPage === 'login' || (!currentUser && currentPage === 'app')) {
     return (
       <LoginPage 
         onNavigateBack={() => setCurrentPage('landing')}
-        onContinueGuest={() => setCurrentPage('app')}
       />
     );
   }

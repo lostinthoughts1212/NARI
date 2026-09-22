@@ -194,6 +194,9 @@ export default function LivePublicTracker({ journeyId, onExit }: LivePublicTrack
   const isSos = session?.status === 'sos';
   const isOffRoute = session?.status === 'off_route';
   const isCompleted = session?.status === 'completed';
+  const isExpired = Boolean(
+    session?.completedAt && Date.now() - session.completedAt > 12 * 60 * 60 * 1000
+  );
 
   const userCenter: [number, number] = session?.currentLocation
     ? [session.currentLocation.latitude, session.currentLocation.longitude]
@@ -217,6 +220,29 @@ export default function LivePublicTracker({ journeyId, onExit }: LivePublicTrack
   const lastUpdatedSeconds = session?.updatedAt
     ? Math.max(0, Math.round((Date.now() - session.updatedAt) / 1000))
     : null;
+
+  if (isExpired) {
+    return (
+      <div className="min-h-screen bg-[#F5EBE0] text-[#450920] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 rounded-full bg-[#A53860]/10 border-2 border-[#A53860] flex items-center justify-center mb-4 shadow-md">
+          <Clock size={32} className="text-[#A53860]" />
+        </div>
+        <h1 className="text-2xl font-serif font-bold text-[#450920] mb-2">Tracking Session Expired</h1>
+        <p className="text-sm text-[#450920]/80 max-w-md mb-6 font-medium">
+          This live journey was completed over 12 hours ago and the temporary tracking link has been securely archived.
+        </p>
+        {onExit && (
+          <button
+            type="button"
+            onClick={onExit}
+            className="px-6 py-2.5 bg-[#A53860] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#8c2e50] transition shadow-md cursor-pointer"
+          >
+            Return to Safety Portal
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={`relative w-screen h-screen overflow-hidden bg-[#070313] text-[#F3E8FF] flex flex-col ${

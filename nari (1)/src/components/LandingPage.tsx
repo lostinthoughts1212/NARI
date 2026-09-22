@@ -28,10 +28,9 @@ import { StatGrid, StatItem } from './StatCard';
 
 interface LandingPageProps {
   onNavigateToLogin: () => void;
-  onLaunchApp?: () => void;
 }
 
-export default function LandingPage({ onNavigateToLogin, onLaunchApp }: LandingPageProps) {
+export default function LandingPage({ onNavigateToLogin }: LandingPageProps) {
   const features = [
     {
       icon: <Compass className="w-5 h-5 text-[#ff6b4a]" />,
@@ -68,22 +67,22 @@ export default function LandingPage({ onNavigateToLogin, onLaunchApp }: LandingP
     {
       icon: Flag,
       title: "Crowdsourced Hazard Reporting",
-      description: "Community-verified alerts on unsafe zones, broken streetlights, and harassment hotspots — updated in real time by users nearby."
+      description: "Submit geolocated hazard markers (unlit streets, harassment spots, blocked pathways) verified by algorithmic consensus."
     },
     {
       icon: RadioTower,
-      title: "Offline SMS Fallback",
-      description: "Automatically switches to GSM-based SOS when internet is unavailable, ensuring alerts reach contacts even in dead zones."
+      title: "Mesh-Ready Offline Ping",
+      description: "Queues critical beacon packets if mobile data is lost, relaying via opportunistic Bluetooth mesh when another NARI node is detected."
     },
     {
       icon: Lock,
-      title: "Duress Cancellation Code",
-      description: "A hidden duress code lets you appear to cancel an alert under coercion while silently keeping escalation and tracking active."
+      title: "Zero-Knowledge Telemetry",
+      description: "Your live locations and biometric telemetry are end-to-end encrypted; only your designated crisis guardians hold the decryption keys."
     },
     {
       icon: Camera,
-      title: "Evidence Auto-Capture",
-      description: "Discreet audio recording and timestamped location logging begin the moment distress is detected — building a secure evidentiary trail."
+      title: "Discreet Evidence Capture",
+      description: "Automated background capture of environmental snapshots upon confirmed panic activation to aid retrospective investigation."
     }
   ];
 
@@ -110,14 +109,12 @@ export default function LandingPage({ onNavigateToLogin, onLaunchApp }: LandingP
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {onLaunchApp && (
-            <button
-              onClick={onLaunchApp}
-              className="px-4 py-2 bg-[#10B981] hover:bg-[#059669] text-white font-bold text-[10px] uppercase tracking-widest rounded-full transition-all cursor-pointer shadow-sm flex items-center gap-1.5"
-            >
-              <span>🧭</span> Open Live Map
-            </button>
-          )}
+          <button
+            onClick={onNavigateToLogin}
+            className="px-4 py-2 bg-[#A53860] hover:bg-[#8c2e50] text-white font-bold text-[10px] uppercase tracking-widest rounded-full transition-all cursor-pointer shadow-sm flex items-center gap-1.5"
+          >
+            <span>🧭</span> Open Live Map
+          </button>
           <button
             onClick={onNavigateToLogin}
             className="px-5 py-2 bg-[#A53860] text-white font-bold text-[10px] uppercase tracking-widest rounded-full hover:bg-[#8c2e50] transition-all cursor-pointer shadow-sm"
@@ -168,16 +165,14 @@ export default function LandingPage({ onNavigateToLogin, onLaunchApp }: LandingP
           transition={{ duration: 0.8, delay: 0.3 }}
           className="flex flex-col sm:flex-row items-center gap-4 mb-16"
         >
-          {onLaunchApp && (
-            <button
-              onClick={onLaunchApp}
-              className="w-full sm:w-auto px-8 py-4 bg-[#10B981] hover:bg-[#059669] text-white font-bold text-xs uppercase tracking-widest rounded-full transition-all flex items-center justify-center gap-2.5 shadow-lg group cursor-pointer"
-            >
-              <span>🧭</span>
-              Launch Safe-Route Map
-              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-            </button>
-          )}
+          <button
+            onClick={onNavigateToLogin}
+            className="w-full sm:w-auto px-8 py-4 bg-[#A53860] hover:bg-[#8c2e50] text-white font-bold text-xs uppercase tracking-widest rounded-full transition-all flex items-center justify-center gap-2.5 shadow-lg group cursor-pointer"
+          >
+            <span>🧭</span>
+            Launch Safe-Route Map
+            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+          </button>
           <button
             onClick={onNavigateToLogin}
             className="w-full sm:w-auto px-8 py-4 bg-[#A53860] text-white font-bold text-xs uppercase tracking-widest rounded-full hover:bg-[#8c2e50] transition-all flex items-center justify-center gap-2.5 shadow-md group cursor-pointer"

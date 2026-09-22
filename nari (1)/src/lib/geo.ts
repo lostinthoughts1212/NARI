@@ -141,3 +141,20 @@ export function getActiveManeuver(
     distanceToTurnMeters: Math.round(distanceToTurn),
   };
 }
+
+/**
+ * Calculates initial compass bearing (heading) in degrees between two points (0 - 360)
+ */
+export function calculateBearing(start: LatLng, end: LatLng): number {
+  const startLat = (start.latitude * Math.PI) / 180;
+  const startLng = (start.longitude * Math.PI) / 180;
+  const endLat = (end.latitude * Math.PI) / 180;
+  const endLng = (end.longitude * Math.PI) / 180;
+  const dLng = endLng - startLng;
+  const y = Math.sin(dLng) * Math.cos(endLat);
+  const x =
+    Math.cos(startLat) * Math.sin(endLat) -
+    Math.sin(startLat) * Math.cos(endLat) * Math.cos(dLng);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+

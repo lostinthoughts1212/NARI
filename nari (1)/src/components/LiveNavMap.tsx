@@ -34,7 +34,12 @@ import {
   type LiveLocationData,
   type LiveJourneySession,
 } from '../lib/firebase';
-import { distanceToPolylineMeters, getActiveManeuver } from '../lib/geo';
+import {
+  distanceToPolylineMeters,
+  getActiveManeuver,
+  haversineDistanceMeters,
+  calculateBearing,
+} from '../lib/geo';
 
 // ── Fix Leaflet default icon URLs in bundled environments ──────────────────────
 // @ts-expect-error – private property
@@ -210,6 +215,14 @@ function MapResizer({ isMaximized }: { isMaximized?: boolean }) {
   return null;
 }
 
+function MapRefSetter({ onMap }: { onMap: (map: L.Map) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    onMap(map);
+  }, [map, onMap]);
+  return null;
+}
+
 // ── Props interface ────────────────────────────────────────────────────────────
 export interface LiveNavMapProps {
   hazards?: Hazard[];
@@ -272,6 +285,24 @@ export default function LiveNavMap({
   const [offRouteDistance,  setOffRouteDistance]  = useState<number>(0);
   const [isSosActive,       setIsSosActive]       = useState(false);
   const [copiedLink,        setCopiedLink]        = useState(false);
+  const [mapInstance,       setMapInstance]       = useState<L.Map | null>(null);
+
+  // ── Sandbox Simulator State ───────────────────────────────────────────────
+  const [isSandboxOpen,     setIsSandboxOpen]     = useState(false);
+  const [isSimRunning,      setIsSimRunning]      = useState(false);
+  const [simProgressIndex,  setSimProgressIndex]  = useState(0);
+  const [simSpeed,          setSimSpeed]          = useState<number>(2); // 1x, 2x, 5x
+  const [isSimDeviated,     setIsSimDeviated]     = useState(false);
+  const [destinationAlert,  setDestinationAlert]  = useState<string | null>(null);
+  const simTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (simTimerRef.current) {
+        clearInterval(simTimerRef.current);
+      }
+    };
+  }, []);
 
   const watchIdRef = useRef<number | null>(null);
 
@@ -443,9 +474,246 @@ export default function LiveNavMap({
     }
   }, [journeyId]);
 
+  // ── Recenter Camera on User / Route ──────────────────────────────────────
+  const handleRecenter = useCallback(() => {
+    if (!mapInstance) return;
+    if (isNavigating && liveLocation) {
+      mapInstance.flyTo([liveLocation.latitude, liveLocation.longitude], 17, {
+        animate: true,
+        duration: 0.8,
+      });
+    } else if (myLocation) {
+      mapInstance.flyTo([myLocation.latitude, myLocation.longitude], 16, {
+        animate: true,
+        duration: 0.8,
+      });
+    } else if (origin) {
+      mapInstance.flyTo([origin.latitude, origin.longitude], 16, {
+        animate: true,
+        duration: 0.8,
+      });
+    } else {
+      handleUseMyLocation();
+    }
+  }, [mapInstance, isNavigating, liveLocation, myLocation, origin, handleUseMyLocation]);
+
+  // ── Load Bhubaneswar Demo Test Route ───────────────────────────────────────
+  const handleLoadDemoRoute = useCallback(() => {
+    const demoStart: LatLng = { latitude: 20.3015, longitude: 85.8075 }; // Ekamra Kanan
+    const demoEnd:   LatLng = { latitude: 20.3025, longitude: 85.8375 }; // Utkal University
+    setOrigin(demoStart);
+    setDestination(demoEnd);
+    setTapMode('destination');
+    calculateRoute(demoStart, demoEnd, avoidDanger);
+  }, [avoidDanger, calculateRoute]);
+
+  // ── Central Location Update Processor (Real GPS + Simulator) ───────────────
+  const processNavUpdate = useCallback(
+    async (
+      locData: LiveLocationData,
+      currentJourneyId: string,
+      currentCoords: LatLng[],
+      maneuversList?: any[]
+    ) => {
+      setLiveLocation(locData);
+
+      // 1. Off-route check (> 65m)
+      const offDist = distanceToPolylineMeters(
+        { latitude: locData.latitude, longitude: locData.longitude },
+        currentCoords
+      );
+      setOffRouteDistance(offDist);
+
+      // 2. Maneuver match
+      const { activeManeuver: nextMan, distanceToTurnMeters, maneuverIndex } =
+        getActiveManeuver(
+          { latitude: locData.latitude, longitude: locData.longitude },
+          maneuversList,
+          currentCoords
+        );
+      setActiveManeuver(nextMan);
+      setDistToManeuver(distanceToTurnMeters);
+
+      // 3. Destination arrival detection (< 25m)
+      if (destination) {
+        const distToDest = haversineDistanceMeters(
+          locData.latitude,
+          locData.longitude,
+          destination.latitude,
+          destination.longitude
+        );
+        if (distToDest < 25) {
+          setDestinationAlert('🎉 Destination Reached! Safe journey completed.');
+          if (currentJourneyId) {
+            await updateJourneyStatus(currentJourneyId, 'completed', { completedAt: Date.now() }).catch(() => {});
+          }
+        }
+      }
+
+      // 4. Update status & stream to Firebase
+      const currentStatus: JourneyStatus = isSosActive
+        ? 'sos'
+        : offDist > 65
+        ? 'off_route'
+        : 'active';
+
+      await updateLiveLocation(currentJourneyId, locData, {
+        offRouteDistance: Math.round(offDist),
+        currentManeuverIndex: maneuverIndex,
+        status: currentStatus,
+      }).catch(() => {});
+    },
+    [destination, isSosActive]
+  );
+
+  // ── Simulation Engine ──────────────────────────────────────────────────────
+  const stopSimulation = useCallback(() => {
+    if (simTimerRef.current) {
+      clearInterval(simTimerRef.current);
+      simTimerRef.current = null;
+    }
+    setIsSimRunning(false);
+  }, []);
+
+  const stepSimulation = useCallback(
+    async (targetIdx: number, forceDeviate?: boolean) => {
+      if (routeCoords.length === 0) return;
+      const idx = Math.min(Math.max(0, targetIdx), routeCoords.length - 1);
+      const curr = routeCoords[idx];
+      const next = routeCoords[Math.min(idx + 1, routeCoords.length - 1)];
+
+      const heading = calculateBearing(curr, next);
+      const isDev = forceDeviate !== undefined ? forceDeviate : isSimDeviated;
+      const deviationLat = isDev ? 0.0011 : 0;
+      const deviationLng = isDev ? 0.0009 : 0;
+
+      const simLoc: LiveLocationData = {
+        latitude: curr.latitude + deviationLat,
+        longitude: curr.longitude + deviationLng,
+        heading,
+        speed: Math.round(25 * simSpeed),
+        accuracy: 4,
+        timestamp: Date.now(),
+      };
+
+      const jId = journeyId || 'nari-sim';
+      await processNavUpdate(simLoc, jId, routeCoords, routeInfo?.maneuvers);
+      setSimProgressIndex(idx);
+
+      if (idx >= routeCoords.length - 1) {
+        stopSimulation();
+        setDestinationAlert('🎉 Destination Reached! Safe journey completed.');
+        if (journeyId) {
+          await updateJourneyStatus(journeyId, 'completed', { completedAt: Date.now() }).catch(() => {});
+        }
+      }
+    },
+    [
+      routeCoords,
+      isSimDeviated,
+      simSpeed,
+      journeyId,
+      routeInfo,
+      processNavUpdate,
+      stopSimulation,
+    ]
+  );
+
+  const handleToggleRunSim = useCallback(async () => {
+    if (isSimRunning) {
+      stopSimulation();
+      return;
+    }
+
+    if (routeCoords.length === 0) {
+      setErrorMsg('Load or create a route first to run the sandbox simulator.');
+      return;
+    }
+
+    let activeJId = journeyId;
+    if (!isNavigating || !activeJId) {
+      const newJId = `nari-${Math.random().toString(36).substring(2, 8)}`;
+      activeJId = newJId;
+      const initialLocation: LiveLocationData = {
+        latitude: routeCoords[0].latitude,
+        longitude: routeCoords[0].longitude,
+        heading: 0,
+        speed: 0,
+        timestamp: Date.now(),
+      };
+
+      const newSession: LiveJourneySession = {
+        id: newJId,
+        userName: 'NARI Sandbox User',
+        origin: origin || routeCoords[0],
+        destination: destination || routeCoords[routeCoords.length - 1],
+        routeCoords,
+        currentLocation: initialLocation,
+        status: 'active',
+        remainingDistanceKm: routeInfo?.distance,
+        remainingTimeMin: routeInfo?.time,
+        startedAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      await createJourneySession(newSession).catch(() => {});
+      setJourneyId(newJId);
+      setIsNavigating(true);
+      setLiveLocation(initialLocation);
+    }
+
+    setIsSimRunning(true);
+    let currentIdx = simProgressIndex >= routeCoords.length - 1 ? 0 : simProgressIndex;
+
+    simTimerRef.current = setInterval(() => {
+      currentIdx += 1;
+      if (currentIdx >= routeCoords.length) {
+        stopSimulation();
+      } else {
+        stepSimulation(currentIdx);
+      }
+    }, Math.max(300, Math.round(1400 / simSpeed)));
+  }, [
+    isSimRunning,
+    routeCoords,
+    journeyId,
+    isNavigating,
+    origin,
+    destination,
+    routeInfo,
+    simProgressIndex,
+    simSpeed,
+    stepSimulation,
+    stopSimulation,
+  ]);
+
+  const handleJumpToEnd = useCallback(() => {
+    if (routeCoords.length === 0) return;
+    stepSimulation(routeCoords.length - 1);
+  }, [routeCoords, stepSimulation]);
+
+  const handleToggleDeviate = useCallback(() => {
+    const nextDev = !isSimDeviated;
+    setIsSimDeviated(nextDev);
+    stepSimulation(simProgressIndex, nextDev);
+  }, [isSimDeviated, simProgressIndex, stepSimulation]);
+
   // ── Start Active Navigation & Firebase Live Stream ─────────────────────────
   const handleStartJourney = useCallback(async () => {
     if (!origin || !destination || routeCoords.length === 0) return;
+
+    // Auto-enter fullscreen console on mobile/phone viewports
+    if (typeof window !== 'undefined') {
+      const isMobile = window.innerWidth < 768 || 'ontouchstart' in window;
+      if (isMobile) {
+        setIsMaximized(true);
+        try {
+          if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => {});
+          }
+        } catch {}
+      }
+    }
 
     const newJourneyId = `nari-${Math.random().toString(36).substring(2, 8)}`;
     const initialLocation: LiveLocationData = {
@@ -489,32 +757,7 @@ export default function LiveNavMap({
               accuracy: pos.coords.accuracy ?? null,
               timestamp: pos.timestamp || Date.now(),
             };
-            setLiveLocation(locData);
-
-            // Off-route check (> 65m)
-            const offDist = distanceToPolylineMeters(
-              { latitude: locData.latitude, longitude: locData.longitude },
-              routeCoords
-            );
-            setOffRouteDistance(offDist);
-
-            // Maneuver match
-            const { activeManeuver: nextMan, distanceToTurnMeters, maneuverIndex } =
-              getActiveManeuver(
-                { latitude: locData.latitude, longitude: locData.longitude },
-                routeInfo?.maneuvers,
-                routeCoords
-              );
-            setActiveManeuver(nextMan);
-            setDistToManeuver(distanceToTurnMeters);
-
-            const currentStatus = isSosActive ? 'sos' : offDist > 65 ? 'off_route' : 'active';
-
-            await updateLiveLocation(newJourneyId, locData, {
-              offRouteDistance: Math.round(offDist),
-              currentManeuverIndex: maneuverIndex,
-              status: currentStatus,
-            }).catch(() => {});
+            processNavUpdate(locData, newJourneyId, routeCoords, routeInfo?.maneuvers);
           },
           (err) => console.warn('Geolocation watch error:', err),
           { enableHighAccuracy: true, maximumAge: 1500, timeout: 10000 }
@@ -529,23 +772,33 @@ export default function LiveNavMap({
     } finally {
       setLoading(false);
     }
-  }, [origin, destination, routeCoords, routeInfo, isSosActive, handleShareJourney]);
+  }, [
+    origin,
+    destination,
+    routeCoords,
+    routeInfo,
+    processNavUpdate,
+    handleShareJourney,
+  ]);
 
   // ── End Journey ────────────────────────────────────────────────────────────
   const handleEndJourney = useCallback(async () => {
+    stopSimulation();
+    setDestinationAlert(null);
+    setIsSimDeviated(false);
     if (watchIdRef.current !== null && navigator.geolocation) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
     if (journeyId) {
-      await updateJourneyStatus(journeyId, 'completed').catch(() => {});
+      await updateJourneyStatus(journeyId, 'completed', { completedAt: Date.now() }).catch(() => {});
     }
     setIsNavigating(false);
     setJourneyId(null);
     setIsSosActive(false);
     setLiveLocation(null);
     setActiveManeuver(null);
-  }, [journeyId]);
+  }, [journeyId, stopSimulation]);
 
   // ── Trigger SOS ────────────────────────────────────────────────────────────
   const handleTriggerSos = useCallback(async () => {
@@ -623,6 +876,21 @@ export default function LiveNavMap({
             <span className="hidden xs:inline">{backendOnline ? 'Online' : 'Offline'}</span>
           </div>
 
+          {/* Sandbox Toggle */}
+          <button
+            type="button"
+            onClick={() => setIsSandboxOpen((v) => !v)}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer border shadow-sm ${
+              isSandboxOpen
+                ? 'bg-[#A53860] text-white border-[#A53860]'
+                : 'bg-white hover:bg-[#FFA5AB]/30 text-[#450920] border-[#f0c39c]'
+            }`}
+            title="Open Navigation Scenario Sandbox"
+          >
+            <span>🧪</span>
+            <span className="hidden sm:inline">Sandbox</span>
+          </button>
+
           {/* Options Drawer Toggle */}
           <button
             type="button"
@@ -661,6 +929,7 @@ export default function LiveNavMap({
           zoomControl={false}
         >
           <MapResizer isMaximized={isMaximized} />
+          <MapRefSetter onMap={setMapInstance} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -764,6 +1033,233 @@ export default function LiveNavMap({
             />
           )}
         </MapContainer>
+
+        {/* ── FLOATING RECENTER BUTTON (Google Maps Style) ── */}
+        <button
+          type="button"
+          onClick={handleRecenter}
+          title="Recenter map on my location"
+          className="absolute right-3 bottom-24 sm:right-4 sm:bottom-28 z-[1000] w-11 h-11 rounded-full bg-white/95 hover:bg-[#F9DBBD] border-2 border-[#f0c39c] hover:border-[#A53860] shadow-xl flex items-center justify-center text-[#450920] hover:text-[#A53860] active:scale-90 transition-all cursor-pointer group"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="group-hover:rotate-45 transition-transform duration-300"
+          >
+            <circle cx="12" cy="12" r="7" />
+            <circle cx="12" cy="12" r="2" fill="currentColor" />
+            <line x1="12" y1="1" x2="12" y2="4" />
+            <line x1="12" y1="20" x2="12" y2="23" />
+            <line x1="1" y1="12" x2="4" y2="12" />
+            <line x1="20" y1="12" x2="23" y2="12" />
+          </svg>
+        </button>
+
+        {/* ── OFF-ROUTE REAL-TIME ALERT BANNER ── */}
+        {isNavigating && offRouteDistance > 65 && (
+          <div className="absolute top-16 inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-96 z-[1001] bg-amber-500 text-black px-4 py-2 rounded-xl font-bold text-xs shadow-xl border-2 border-amber-600 flex items-center justify-between gap-2 animate-bounce">
+            <div className="flex items-center gap-2">
+              <span className="text-base">⚠️</span>
+              <span>Off-Route Alert: Deviated ~{Math.round(offRouteDistance)}m from safe corridor!</span>
+            </div>
+            {isSimDeviated && (
+              <button
+                type="button"
+                onClick={handleToggleDeviate}
+                className="px-2 py-0.5 bg-black text-white text-[10px] rounded font-bold cursor-pointer shrink-0"
+              >
+                Snap Back
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* ── DESTINATION ARRIVAL BANNER / MODAL ── */}
+        {destinationAlert && (
+          <div className="absolute top-20 inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-96 z-[1003] bg-white border-2 border-emerald-500 rounded-2xl p-4 shadow-2xl text-center space-y-2.5 animate-in fade-in zoom-in duration-300">
+            <div className="w-12 h-12 mx-auto rounded-full bg-emerald-100 border-2 border-emerald-500 flex items-center justify-center text-2xl">
+              🎉
+            </div>
+            <h3 className="text-sm font-black text-[#450920] uppercase tracking-wide">Destination Reached!</h3>
+            <p className="text-xs text-[#450920]/80">
+              {destinationAlert}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setDestinationAlert(null);
+                handleEndJourney();
+              }}
+              className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition cursor-pointer shadow"
+            >
+              Complete Journey
+            </button>
+          </div>
+        )}
+
+        {/* ── FLOATING NAVIGATION SCENARIO SANDBOX ── */}
+        {isSandboxOpen && (
+          <div className="absolute top-14 left-2.5 right-2.5 sm:left-4 sm:right-auto sm:w-96 z-[1002] bg-[#F9DBBD]/98 backdrop-blur-md border-2 border-[#f0c39c] rounded-2xl p-3.5 shadow-2xl text-[#450920] space-y-3">
+            <div className="flex items-center justify-between border-b border-[#f0c39c] pb-2">
+              <span className="text-xs font-bold font-mono uppercase tracking-wider text-[#450920] flex items-center gap-1.5">
+                <span>🧪</span> Navigation Scenario Sandbox
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsSandboxOpen(false)}
+                className="text-[#450920] hover:text-[#A53860] text-xs cursor-pointer p-1 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Quick Demo route loader if none active */}
+            {routeCoords.length === 0 && (
+              <div className="p-2.5 bg-white/80 rounded-xl border border-[#f0c39c] space-y-2">
+                <p className="text-[11px] text-[#450920] font-semibold">
+                  Test navigation scenarios instantly without picking coordinates:
+                </p>
+                <button
+                  type="button"
+                  onClick={handleLoadDemoRoute}
+                  disabled={loading}
+                  className="w-full py-2 bg-[#A53860] hover:bg-[#8c2e50] text-white text-xs font-bold rounded-xl transition shadow-sm cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <span>🗺️</span> Load Bhubaneswar Demo Route
+                </button>
+              </div>
+            )}
+
+            {/* Simulator Controls */}
+            {routeCoords.length > 0 && (
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between px-2.5 py-1.5 bg-white/80 rounded-xl border border-[#f0c39c] text-xs">
+                  <span className="font-bold flex items-center gap-1">
+                    <span className={`w-2 h-2 rounded-full ${isSimRunning ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
+                    {isSimRunning ? 'Simulation Running' : 'Simulation Paused'}
+                  </span>
+                  <span className="font-mono text-[11px] text-[#6b1d3d] font-bold">
+                    {Math.round((simProgressIndex / (routeCoords.length - 1 || 1)) * 100)}% Route Done
+                  </span>
+                </div>
+
+                {/* Progress Scrubber */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] font-mono font-bold text-[#450920]">
+                    <span>Start</span>
+                    <span>Step {simProgressIndex + 1}/{routeCoords.length}</span>
+                    <span>Dest</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max={Math.max(0, routeCoords.length - 1)}
+                    value={simProgressIndex}
+                    onChange={(e) => stepSimulation(Number(e.target.value))}
+                    className="w-full accent-[#A53860] cursor-pointer"
+                  />
+                </div>
+
+                {/* Play / Pause & Speed Selector */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleToggleRunSim}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 shadow-sm text-white ${
+                      isSimRunning ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
+                    }`}
+                  >
+                    <span>{isSimRunning ? '⏸' : '▶'}</span>
+                    <span>{isSimRunning ? 'Pause Sim' : 'Run Simulation'}</span>
+                  </button>
+
+                  {/* Speed Multiplier */}
+                  <div className="flex items-center bg-white rounded-xl border border-[#f0c39c] p-0.5">
+                    {[1, 2, 5].map((spd) => (
+                      <button
+                        key={spd}
+                        type="button"
+                        onClick={() => setSimSpeed(spd)}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-bold font-mono transition cursor-pointer ${
+                          simSpeed === spd
+                            ? 'bg-[#A53860] text-white'
+                            : 'text-[#450920] hover:bg-[#FFA5AB]/20'
+                        }`}
+                      >
+                        {spd}x
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Scenario Testing Buttons */}
+                <div className="grid grid-cols-2 gap-1.5 pt-1">
+                  {/* Off-Route Deviation Test */}
+                  <button
+                    type="button"
+                    onClick={handleToggleDeviate}
+                    className={`py-2 px-2 rounded-xl border text-[11px] font-bold transition cursor-pointer flex items-center justify-center gap-1 shadow-sm ${
+                      isSimDeviated
+                        ? 'bg-amber-500 border-amber-600 text-black font-black animate-pulse'
+                        : 'bg-white hover:bg-amber-50 border-[#f0c39c] text-[#450920]'
+                    }`}
+                  >
+                    <span>⚠️</span>
+                    <span>{isSimDeviated ? 'Snap to Route' : 'Test Off-Route'}</span>
+                  </button>
+
+                  {/* Jump to Destination Test */}
+                  <button
+                    type="button"
+                    onClick={handleJumpToEnd}
+                    className="py-2 px-2 rounded-xl bg-white hover:bg-emerald-50 border border-[#f0c39c] text-[#450920] text-[11px] font-bold transition cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+                  >
+                    <span>🏁</span>
+                    <span>Jump to Arrival</span>
+                  </button>
+
+                  {/* Rewind to Start */}
+                  <button
+                    type="button"
+                    onClick={() => stepSimulation(0)}
+                    className="py-2 px-2 rounded-xl bg-white hover:bg-gray-100 border border-[#f0c39c] text-[#450920] text-[11px] font-bold transition cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+                  >
+                    <span>🔄</span>
+                    <span>Rewind Start</span>
+                  </button>
+
+                  {/* Test SOS Distress Trigger */}
+                  <button
+                    type="button"
+                    onClick={handleTriggerSos}
+                    className="py-2 px-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold transition cursor-pointer flex items-center justify-center gap-1 shadow-sm"
+                  >
+                    <span>🚨</span>
+                    <span>Test SOS</span>
+                  </button>
+                </div>
+
+                {/* Open Peer Public Tracker in New Tab */}
+                {journeyId && (
+                  <button
+                    type="button"
+                    onClick={() => window.open(`/?track=${journeyId}`, '_blank')}
+                    className="w-full py-2 bg-[#FFA5AB]/40 hover:bg-[#FFA5AB]/60 border border-[#f0c39c] text-[#450920] text-[11px] font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <span>👁️</span>
+                    <span>Open Live Tracker in New Tab</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── FLOATING ROUTE SETUP ISLAND (Responsive for phone & desktop, matching site theme) ── */}
         {!isNavigating && (
@@ -977,6 +1473,19 @@ export default function LiveNavMap({
 
               <button
                 type="button"
+                onClick={() => setIsSandboxOpen((v) => !v)}
+                className={`flex items-center gap-1.5 py-2 px-3.5 rounded-xl border text-xs font-bold transition cursor-pointer shadow-sm ${
+                  isSandboxOpen
+                    ? 'bg-[#A53860] text-white border-[#A53860]'
+                    : 'bg-white hover:bg-[#FFA5AB]/30 border-[#f0c39c] text-[#450920]'
+                }`}
+              >
+                <span>🧪</span>
+                <span>Sandbox</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={handleEndJourney}
                 className="flex items-center gap-1 py-2 px-3.5 rounded-xl bg-white hover:bg-[#FFA5AB]/30 border border-[#f0c39c] text-[#450920] text-xs font-bold transition cursor-pointer shadow-sm"
               >
@@ -1054,6 +1563,19 @@ export default function LiveNavMap({
                 </p>
               </div>
             )}
+
+            {/* Sandbox Simulator Shortcut */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsSandboxOpen(true);
+                setShowOptions(false);
+              }}
+              className="w-full py-2 bg-[#A53860]/15 hover:bg-[#A53860]/25 border border-[#A53860]/40 text-[#450920] rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>🧪</span>
+              <span>Open Scenario Simulator</span>
+            </button>
 
             {/* Error Messages */}
             {errorMsg && (
