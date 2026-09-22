@@ -213,11 +213,13 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5EBE0] text-[#450920] font-sans antialiased flex flex-col justify-between relative" id="nari-app-container">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#F5EBE0] text-[#450920] font-sans antialiased flex flex-col justify-between relative" id="nari-app-container">
       
-      {/* Decorative Atmosphere Glow */}
-      <div className="absolute top-0 left-1/4 w-[580px] h-[380px] bg-[#A53860]/[0.06] blur-[140px] rounded-full pointer-events-none"></div>
-      <div className="absolute bottom-0 right-1/4 w-[600px] h-[400px] bg-[#FFA5AB]/[0.1] blur-[160px] rounded-full pointer-events-none"></div>
+      {/* Decorative Atmosphere Glow — strictly contained to prevent horizontal scroll */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-[580px] h-[380px] bg-[#A53860]/[0.06] blur-[140px] rounded-full"></div>
+        <div className="absolute bottom-0 right-1/4 w-[600px] h-[400px] bg-[#FFA5AB]/[0.1] blur-[160px] rounded-full"></div>
+      </div>
 
       {/* SYSTEM HEADER BAR */}
       <header className="sticky top-0 z-50 border-b border-[#f0c39c] bg-[#F5EBE0]/95 backdrop-blur-md px-4 py-3 md:px-12 md:py-4 flex items-center justify-between gap-3 shadow-sm">
