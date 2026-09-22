@@ -111,12 +111,6 @@ export default function LandingPage({ onNavigateToLogin }: LandingPageProps) {
         <div className="flex items-center gap-2">
           <button
             onClick={onNavigateToLogin}
-            className="px-4 py-2 bg-[#A53860] hover:bg-[#8c2e50] text-white font-bold text-[10px] uppercase tracking-widest rounded-full transition-all cursor-pointer shadow-sm flex items-center gap-1.5"
-          >
-            <span>🧭</span> Open Live Map
-          </button>
-          <button
-            onClick={onNavigateToLogin}
             className="px-5 py-2 bg-[#A53860] text-white font-bold text-[10px] uppercase tracking-widest rounded-full hover:bg-[#8c2e50] transition-all cursor-pointer shadow-sm"
           >
             Access Portal
@@ -169,14 +163,7 @@ export default function LandingPage({ onNavigateToLogin }: LandingPageProps) {
             onClick={onNavigateToLogin}
             className="w-full sm:w-auto px-8 py-4 bg-[#A53860] hover:bg-[#8c2e50] text-white font-bold text-xs uppercase tracking-widest rounded-full transition-all flex items-center justify-center gap-2.5 shadow-lg group cursor-pointer"
           >
-            <span>🧭</span>
-            Launch Safe-Route Map
-            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-          </button>
-          <button
-            onClick={onNavigateToLogin}
-            className="w-full sm:w-auto px-8 py-4 bg-[#A53860] text-white font-bold text-xs uppercase tracking-widest rounded-full hover:bg-[#8c2e50] transition-all flex items-center justify-center gap-2.5 shadow-md group cursor-pointer"
-          >
+            <span>🛡️</span>
             Access Safety Console
             <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
           </button>
