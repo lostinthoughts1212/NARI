@@ -12,9 +12,12 @@ import {
   Sparkles,
   Loader2,
   MapPin,
+  ListFilter,
+  CheckCircle2,
 } from 'lucide-react';
 import { Hazard } from '../types';
-import LiveNavMap, { HAZARD_COLORS } from './LiveNavMap';
+import LiveNavMap from './LiveNavMap';
+import { HAZARD_COLORS } from '../lib/bhubaneswarData';
 import { analyzeHazard } from '../lib/geminiAnalysis';
 
 interface SafeRouteNavigationProps {
@@ -30,6 +33,9 @@ export default function SafeRouteNavigation({
   hazards,
   metricsPanicScore,
 }: SafeRouteNavigationProps) {
+
+  // ── Mobile Segmented View ──────────────────────────────────────────────────
+  const [mobileView, setMobileView] = useState<'map' | 'logs'>('map');
 
   // ── Log interaction ────────────────────────────────────────────────────────
   const [highlightedHazardId, setHighlightedHazardId] = useState<string | null>(null);
@@ -50,7 +56,7 @@ export default function SafeRouteNavigation({
 
   // ── AI analysis trigger ────────────────────────────────────────────────────
   const triggerHazardAnalysis = useCallback(async (hazard: Hazard) => {
-    if (hazardAnalyses[hazard.id]) return; // already cached
+    if (hazardAnalyses[hazard.id]) return;
     setAnalyzingId(hazard.id);
     try {
       const text = await analyzeHazard({
@@ -63,7 +69,7 @@ export default function SafeRouteNavigation({
       });
       setHazardAnalyses((prev) => ({ ...prev, [hazard.id]: text }));
     } catch {
-      setHazardAnalyses((prev) => ({ ...prev, [hazard.id]: 'Analysis unavailable.' }));
+      setHazardAnalyses((prev) => ({ ...prev, [hazard.id]: 'AI assessment unavailable.' }));
     } finally {
       setAnalyzingId(null);
     }
@@ -84,12 +90,14 @@ export default function SafeRouteNavigation({
     setIsPinMode(true);
     setIsAddingCustomPin(false);
     setPendingPinCoords(null);
+    setMobileView('map'); // Switch to map view on mobile
   }, []);
 
   const handleMapPinCoords = useCallback((lat: number, lng: number) => {
     setPendingPinCoords({ lat, lng });
     setIsPinMode(false);
     setIsAddingCustomPin(true);
+    setMobileView('map');
   }, []);
 
   const cancelPin = useCallback(() => {
@@ -105,15 +113,15 @@ export default function SafeRouteNavigation({
     if (!hazardDesc.trim()) return;
 
     const newHazard: Hazard = {
-      id: Math.random().toString(),
-      lat: 50, lng: 50, // legacy SVG coords — unused in Leaflet map
+      id: `h_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      lat: 50, lng: 50,
       realLat: pendingPinCoords?.lat,
       realLng: pendingPinCoords?.lng,
       type: hazardType,
       severity: hazardSeverity,
       description: hazardDesc,
       reporter: 'NARI Active User (Verified Client)',
-      timeAgo: '1m ago',
+      timeAgo: 'Just now',
       votes: 1,
     };
 
@@ -128,190 +136,207 @@ export default function SafeRouteNavigation({
   );
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-12 gap-4" id="routing-engine-panel">
-
-      {/* ── LEAFLET MAP — 9 columns (75%) ── */}
-      <div className="xl:col-span-9 flex flex-col xl:min-h-[680px]">
-
-        {/* Context heading */}
-        <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-          <div>
-            <h3 className="text-xs font-bold text-[#450920] uppercase tracking-wider font-mono flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#A53860] animate-pulse inline-block" />
-              NARI Live Navigation · Bhubaneswar Safe Routes
-            </h3>
-            <p className="text-[10px] text-[#450920] font-semibold mt-0.5">
-              Real routing via Valhalla engine · Danger zones from community dataset
-            </p>
-          </div>
-          {metricsPanicScore >= 80 && (
-            <div className="flex items-center gap-1.5 bg-[#FFA5AB]/30 border border-[#A53860] px-3 py-1.5 rounded-full text-[10px] font-bold text-[#450920] animate-pulse">
-              <AlertCircle className="w-3 h-3 text-[#A53860]" />
-              High stress — consider NARI Safe Route
-            </div>
-          )}
-        </div>
-
-        {/* Pin-mode instruction banner above map */}
-        {isPinMode && (
-          <div className="mb-2 flex items-center gap-2 px-3 py-2 bg-[#A53860] text-white rounded-xl text-xs font-bold font-mono animate-pulse">
-            <MapPin className="w-3.5 h-3.5 shrink-0" />
-            Click anywhere on the map to drop your hazard pin
-            <button
-              type="button"
-              onClick={cancelPin}
-              className="ml-auto px-2 py-0.5 bg-white/20 hover:bg-white/30 rounded-lg text-[9px] cursor-pointer transition-all"
-            >
-              ✕ Cancel
-            </button>
-          </div>
-        )}
-
-        {/* Map — flex-1 fills remaining column height */}
-        <div className="flex-1">
-          <LiveNavMap
-            hazards={hazards}
-            highlightedHazardId={highlightedHazardId}
-            onHazardMarkerClick={handleSelectHazard}
-            isPinMode={isPinMode}
-            onPinCoords={handleMapPinCoords}
-            pendingPinCoords={pendingPinCoords}
-          />
-        </div>
+    <div className="space-y-3" id="routing-engine-panel">
+      {/* ── MOBILE VIEW SWITCHER (Segmented control on screens < xl) ── */}
+      <div className="xl:hidden flex items-center p-1 bg-[#F9DBBD] border border-[#f0c39c] rounded-2xl shadow-sm">
+        <button
+          type="button"
+          onClick={() => setMobileView('map')}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer touch-target ${
+            mobileView === 'map' ? 'bg-[#A53860] text-white shadow-sm' : 'text-[#450920] hover:bg-white/40'
+          }`}
+        >
+          <span>🗺️</span>
+          <span>Safe Route Map</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileView('logs')}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer touch-target ${
+            mobileView === 'logs' ? 'bg-[#A53860] text-white shadow-sm' : 'text-[#450920] hover:bg-white/40'
+          }`}
+        >
+          <span>📋</span>
+          <span>Community Intel ({hazards.length})</span>
+        </button>
       </div>
 
-      {/* ── LOG + FORM PANEL — 3 columns (25%) ── */}
-      <div className="xl:col-span-3 flex flex-col gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
 
-        {/* ── PIN MODE waiting prompt ── */}
-        {isPinMode && (
-          <div className="p-4 bg-[#A53860]/10 border-2 border-[#A53860] border-dashed rounded-2xl flex flex-col items-center justify-center gap-3 text-center min-h-[130px]">
-            <MapPin className="w-7 h-7 text-[#A53860] animate-bounce" />
-            <p className="text-xs font-bold text-[#450920] font-mono uppercase tracking-wide">
-              Tap on the map to place pin
-            </p>
-            <button
-              type="button"
-              onClick={cancelPin}
-              className="px-3 py-1 rounded-lg text-[10px] font-bold text-[#450920] bg-white hover:bg-[#FFA5AB]/30 border border-[#f0c39c] transition-all font-mono cursor-pointer"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
+        {/* ── LEAFLET MAP CONTAINER (Always visible on desktop, tabbed on mobile) ── */}
+        <div className={`xl:col-span-9 flex flex-col xl:min-h-[700px] relative ${mobileView === 'logs' ? 'hidden xl:flex' : 'flex'}`}>
 
-        {/* ── HAZARD FORM (after pin placed on map) ── */}
-        {!isPinMode && isAddingCustomPin && (
-          <div className="p-4 bg-[#F9DBBD] border-2 border-[#A53860] rounded-2xl shadow-md">
-            <h3 className="text-xs font-bold text-[#A53860] uppercase tracking-widest font-mono mb-3 flex items-center gap-1.5">
-              <AlertCircle className="w-4 h-4 text-[#A53860]" />
-              Register Environmental Threat
-            </h3>
-
-            {/* Coords badge */}
-            {pendingPinCoords && (
-              <div className="mb-3 flex items-center gap-1.5 px-2 py-1.5 bg-[#A53860]/10 border border-[#A53860]/30 rounded-lg text-[9px] font-mono text-[#450920]">
-                <MapPin className="w-3 h-3 text-[#A53860] shrink-0" />
-                <span className="font-bold">Pinned:</span>
-                {pendingPinCoords.lat.toFixed(5)}, {pendingPinCoords.lng.toFixed(5)}
+          {/* Context heading */}
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+            <div>
+              <h3 className="text-xs font-bold text-[#450920] uppercase tracking-wider font-mono flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#A53860] animate-pulse inline-block" />
+                NARI Live Navigation · Bhubaneswar Safe Routes
+              </h3>
+              <p className="text-[10px] text-[#450920]/80 font-semibold mt-0.5">
+                Bhubaneswar danger zones dataset · Real-time safe corridors & community alerts
+              </p>
+            </div>
+            {metricsPanicScore >= 80 && (
+              <div className="flex items-center gap-1.5 bg-[#FFA5AB]/30 border border-[#A53860] px-3 py-1 rounded-full text-[10px] font-bold text-[#450920] animate-pulse">
+                <AlertCircle className="w-3 h-3 text-[#A53860]" />
+                High stress — consider NARI Safe Corridor
               </div>
             )}
-
-            <form onSubmit={handleCreateHazardSubmit} className="space-y-3">
-              <div>
-                <label className="text-[10px] uppercase font-mono text-[#450920] font-bold block mb-1">
-                  Hazard Type
-                </label>
-                <div className="grid grid-cols-2 gap-1">
-                  {[
-                    { id: 'unlit',      label: 'Unlit Area' },
-                    { id: 'harassment', label: 'Harassment' },
-                    { id: 'isolated',   label: 'Isolated' },
-                    { id: 'cctv_fail',  label: 'CCTV Fail' },
-                  ].map((item) => (
-                    <button
-                      type="button"
-                      key={item.id}
-                      onClick={() => setHazardType(item.id as typeof hazardType)}
-                      className={`p-1.5 rounded text-[9px] font-bold text-center border font-mono transition-all cursor-pointer ${
-                        hazardType === item.id
-                          ? 'border-[#A53860] bg-[#A53860] text-white'
-                          : 'border-[#f0c39c] bg-white text-[#450920] hover:bg-[#FFA5AB]/30'
-                      }`}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase font-mono text-[#450920] font-bold block mb-1">
-                  Severity
-                </label>
-                <div className="flex gap-2">
-                  {(['medium', 'high'] as const).map((sev) => (
-                    <button
-                      type="button"
-                      key={sev}
-                      onClick={() => setHazardSeverity(sev)}
-                      className={`flex-1 p-1.5 rounded text-[10px] font-bold border font-mono transition-all cursor-pointer ${
-                        hazardSeverity === sev
-                          ? 'border-[#A53860] bg-[#A53860] text-white'
-                          : 'border-[#f0c39c] bg-white text-[#450920] hover:bg-[#FFA5AB]/30'
-                      }`}
-                    >
-                      {sev.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase font-mono text-[#450920] font-bold block mb-1">
-                  Description
-                </label>
-                <input
-                  type="text"
-                  value={hazardDesc}
-                  onChange={(e) => setHazardDesc(e.target.value)}
-                  placeholder="e.g. Broken streetlamp near campus gate"
-                  className="w-full text-xs p-2 rounded-lg border border-[#f0c39c] bg-white text-[#450920] placeholder-[#450920]/50 focus:outline-none focus:border-[#A53860] font-sans font-bold shadow-sm"
-                />
-              </div>
-
-              <div className="flex gap-2 justify-end">
-                <button
-                  type="button"
-                  onClick={cancelPin}
-                  className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-[#450920] bg-white hover:bg-[#FFA5AB]/30 border border-[#f0c39c] transition-all font-mono cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!hazardDesc.trim()}
-                  className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-white bg-[#A53860] hover:bg-[#8c2e50] transition-all font-mono disabled:opacity-50 cursor-pointer shadow-sm"
-                >
-                  Deploy Pin
-                </button>
-              </div>
-            </form>
           </div>
-        )}
 
-        {/* ── CROWDSOURCED LOG PANEL ── */}
-        {!isPinMode && !isAddingCustomPin && (
+          {/* Pin-mode instruction banner */}
+          {isPinMode && (
+            <div className="mb-2 flex items-center justify-between gap-2 px-3 py-2 bg-[#A53860] text-white rounded-xl text-xs font-bold font-mono animate-pulse shadow-md">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 shrink-0" />
+                <span>Tap anywhere on the map to drop your hazard marker</span>
+              </div>
+              <button
+                type="button"
+                onClick={cancelPin}
+                className="px-2.5 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-[10px] cursor-pointer transition-all"
+              >
+                ✕ Cancel
+              </button>
+            </div>
+          )}
+
+          {/* Map canvas */}
+          <div className="flex-1 relative">
+            <LiveNavMap
+              hazards={hazards}
+              highlightedHazardId={highlightedHazardId}
+              onHazardMarkerClick={handleSelectHazard}
+              isPinMode={isPinMode}
+              onPinCoords={handleMapPinCoords}
+              pendingPinCoords={pendingPinCoords}
+            />
+
+            {/* ── FLOATING HAZARD REGISTRATION MODAL / BOTTOM SHEET (Over Map) ── */}
+            {!isPinMode && isAddingCustomPin && (
+              <div className="absolute inset-x-2 bottom-3 sm:bottom-auto sm:top-14 sm:right-3 sm:left-auto sm:w-88 z-[1005] bg-[#F5EBE0]/98 backdrop-blur-xl border-2 border-[#A53860] rounded-2xl p-4 shadow-2xl animate-slide-up">
+                <div className="flex items-center justify-between border-b border-[#f0c39c] pb-2 mb-3">
+                  <h3 className="text-xs font-black text-[#A53860] uppercase tracking-widest font-mono flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 text-[#A53860]" />
+                    Register Environmental Threat
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={cancelPin}
+                    className="text-xs text-[#450920] hover:text-[#A53860] font-bold p-1 cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {pendingPinCoords && (
+                  <div className="mb-3 flex items-center gap-1.5 px-2.5 py-1.5 bg-[#A53860]/10 border border-[#A53860]/30 rounded-xl text-[10px] font-mono text-[#450920]">
+                    <MapPin className="w-3.5 h-3.5 text-[#A53860] shrink-0" />
+                    <span className="font-bold">Coords:</span>
+                    {pendingPinCoords.lat.toFixed(5)}, {pendingPinCoords.lng.toFixed(5)}
+                  </div>
+                )}
+
+                <form onSubmit={handleCreateHazardSubmit} className="space-y-3">
+                  <div>
+                    <label className="text-[10px] uppercase font-mono text-[#450920] font-bold block mb-1">
+                      Hazard Category
+                    </label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {[
+                        { id: 'unlit',      label: 'Unlit Area' },
+                        { id: 'harassment', label: 'Harassment' },
+                        { id: 'isolated',   label: 'Isolated' },
+                        { id: 'cctv_fail',  label: 'CCTV Fail' },
+                      ].map((item) => (
+                        <button
+                          type="button"
+                          key={item.id}
+                          onClick={() => setHazardType(item.id as typeof hazardType)}
+                          className={`py-2 px-2 rounded-xl text-[10px] font-bold text-center border font-mono transition-all cursor-pointer touch-target ${
+                            hazardType === item.id
+                              ? 'border-[#A53860] bg-[#A53860] text-white shadow-sm'
+                              : 'border-[#f0c39c] bg-white text-[#450920] hover:bg-[#FFA5AB]/25'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase font-mono text-[#450920] font-bold block mb-1">
+                      Severity Level
+                    </label>
+                    <div className="flex gap-2">
+                      {(['medium', 'high'] as const).map((sev) => (
+                        <button
+                          type="button"
+                          key={sev}
+                          onClick={() => setHazardSeverity(sev)}
+                          className={`flex-1 py-1.5 rounded-xl text-[10px] font-bold border font-mono transition-all cursor-pointer touch-target ${
+                            hazardSeverity === sev
+                              ? 'border-[#A53860] bg-[#A53860] text-white shadow-sm'
+                              : 'border-[#f0c39c] bg-white text-[#450920] hover:bg-[#FFA5AB]/25'
+                          }`}
+                        >
+                          {sev.toUpperCase()} PRIORITY
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase font-mono text-[#450920] font-bold block mb-1">
+                      Threat Description
+                    </label>
+                    <input
+                      type="text"
+                      value={hazardDesc}
+                      onChange={(e) => setHazardDesc(e.target.value)}
+                      placeholder="e.g. Broken streetlamp, poorly lit lane near gate"
+                      className="w-full text-xs p-2.5 rounded-xl border border-[#f0c39c] bg-white text-[#450920] placeholder-[#450920]/45 focus:outline-none focus:border-[#A53860] font-sans font-bold shadow-sm"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-1 justify-end">
+                    <button
+                      type="button"
+                      onClick={cancelPin}
+                      className="px-3.5 py-2 rounded-xl text-xs font-bold text-[#450920] bg-white hover:bg-[#FFA5AB]/30 border border-[#f0c39c] transition-all font-mono cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!hazardDesc.trim()}
+                      className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#A53860] hover:bg-[#8c2e50] transition-all font-mono disabled:opacity-50 cursor-pointer shadow-md"
+                    >
+                      Deploy Pin
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── CROWDSOURCED LOG PANEL (Always visible on desktop, tabbed on mobile) ── */}
+        <div className={`xl:col-span-3 flex flex-col gap-3 ${mobileView === 'map' ? 'hidden xl:flex' : 'flex'}`}>
+
           <div className="p-4 bg-[#F9DBBD] rounded-2xl border border-[#f0c39c] shadow-sm flex flex-col gap-3 flex-1">
-
             <div className="flex flex-wrap items-center justify-between gap-2 shrink-0">
               <h3 className="text-xs font-bold text-[#450920] uppercase tracking-wider font-mono flex items-center gap-1.5">
-                <Sun className="w-3.5 h-3.5 text-[#A53860]" />
-                Live Crowdsourced Logs
+                <Sun className="w-4 h-4 text-[#A53860]" />
+                Crowdsourced Intel
                 <span className="text-[10px] font-normal text-[#A53860] bg-white px-2 py-0.5 rounded-full border border-[#f0c39c]">
-                  {hazards.length} Active
+                  {hazards.length} Reports
                 </span>
               </h3>
+
               {/* Filter pills */}
               <div className="flex items-center gap-1 text-[9px] font-mono flex-wrap">
                 {['all', 'unlit', 'harassment', 'cctv_fail'].map((filterKey) => (
@@ -319,7 +344,7 @@ export default function SafeRouteNavigation({
                     key={filterKey}
                     type="button"
                     onClick={() => setLogFilter(filterKey)}
-                    className={`px-2 py-0.5 rounded-full uppercase transition-all cursor-pointer font-bold ${
+                    className={`px-2 py-1 rounded-full uppercase transition-all cursor-pointer font-bold ${
                       logFilter === filterKey
                         ? 'bg-[#A53860] text-white'
                         : 'bg-white text-[#450920] border border-[#f0c39c] hover:bg-[#FFA5AB]/30'
@@ -331,8 +356,8 @@ export default function SafeRouteNavigation({
               </div>
             </div>
 
-            {/* Log entries */}
-            <div className="space-y-1.5 overflow-y-auto flex-grow pr-0.5" style={{ maxHeight: '480px' }}>
+            {/* Log entries list */}
+            <div className="space-y-2 overflow-y-auto flex-grow pr-0.5 max-h-[540px]">
               {filteredHazards.map((item) => {
                 const isHL       = highlightedHazardId === item.id;
                 const hasVoted   = votedIds[item.id];
@@ -342,45 +367,48 @@ export default function SafeRouteNavigation({
 
                 return (
                   <div key={item.id} className="flex flex-col">
-                    {/* Entry card */}
                     <div
-                      onClick={() => handleSelectHazard(item.id)}
-                      className={`p-2.5 rounded-xl border transition-all flex gap-2 justify-between items-start text-[10px] cursor-pointer ${
+                      onClick={() => {
+                        handleSelectHazard(item.id);
+                        if (window.innerWidth < 1280) {
+                          setMobileView('map');
+                        }
+                      }}
+                      className={`p-3 rounded-xl border transition-all flex gap-2 justify-between items-start text-xs cursor-pointer ${
                         isHL
                           ? 'bg-white border-[#A53860] shadow-md ring-1 ring-[#A53860] rounded-b-none'
                           : 'bg-[#F5EBE0] border-[#f0c39c] hover:border-[#A53860]'
                       }`}
                     >
-                      <div className="space-y-1 flex-1 min-w-0">
+                      <div className="space-y-1.5 flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          {/* Colored type badge */}
                           <span
-                            className="text-[8px] font-mono uppercase px-1.5 py-0.5 rounded font-bold text-white"
+                            className="text-[8px] font-mono uppercase px-2 py-0.5 rounded-full font-bold text-white shadow-xs"
                             style={{ backgroundColor: dotColor }}
                           >
                             {item.type.replace('_', ' ')}
                           </span>
-                          <span className="text-[#450920] font-mono font-bold">{item.timeAgo}</span>
-                          <span className="text-[9px] text-[#450920]/60 font-mono truncate max-w-[80px]">
+                          <span className="text-[#450920] font-mono font-bold text-[10px]">{item.timeAgo}</span>
+                          <span className="text-[10px] text-[#450920]/60 font-mono truncate max-w-[100px]">
                             {item.reporter}
                           </span>
                         </div>
-                        <p className="text-[#450920] font-sans font-bold leading-snug line-clamp-2">
+                        <p className="text-[#450920] font-sans font-bold leading-snug">
                           {item.description}
                         </p>
-                        <div className="text-[8px] font-mono text-[#450920]/60 flex items-center gap-1">
+                        <div className="text-[9px] font-mono text-[#A53860] font-bold flex items-center gap-1">
                           {isHL ? (
-                            <span className="flex items-center gap-0.5 text-[#A53860] font-bold">
-                              <EyeOff className="w-2 h-2" />
-                              {item.realLat ? 'Focused on map · click to unfocus' : 'Click to unfocus'}
+                            <span className="flex items-center gap-1">
+                              <EyeOff className="w-2.5 h-2.5" />
+                              Focused on map · Tap to unfocus
                             </span>
                           ) : (
-                            <span>{item.realLat ? '↗ Click to focus on map + AI analysis' : 'Click to focus'}</span>
+                            <span>↗ Tap to focus on map + AI audit</span>
                           )}
                         </div>
                       </div>
 
-                      {/* Upvote */}
+                      {/* Upvote button */}
                       <button
                         type="button"
                         onClick={(e) => {
@@ -389,43 +417,43 @@ export default function SafeRouteNavigation({
                           else item.votes += 1;
                           setVotedIds((prev) => ({ ...prev, [item.id]: true }));
                         }}
-                        className={`px-2 py-1 rounded-lg border transition-all font-mono text-[9px] font-bold shadow-sm cursor-pointer shrink-0 flex items-center gap-0.5 ${
+                        className={`px-2.5 py-1.5 rounded-xl border transition-all font-mono text-xs font-bold shadow-sm cursor-pointer shrink-0 flex items-center gap-1 touch-target ${
                           hasVoted
                             ? 'bg-[#A53860] text-white border-[#A53860]'
                             : 'bg-white border-[#f0c39c] text-[#450920] hover:bg-[#FFA5AB]/30'
                         }`}
-                        title="Confirm / Verify hazard report"
+                        title="Confirm & verify report"
                       >
                         <span>▲</span>
                         <span>{item.votes}</span>
                       </button>
                     </div>
 
-                    {/* ── AI ANALYSIS PANEL (expands below selected entry) ── */}
+                    {/* AI Safety Analysis Expandable Drawer */}
                     {isHL && (
-                      <div className="px-3 py-2.5 bg-white border border-[#A53860] border-t-0 rounded-b-xl shadow-md">
-                        <div className="flex items-center gap-1.5 mb-1.5">
-                          <Sparkles className="w-3 h-3 text-[#A53860]" />
-                          <span className="text-[9px] font-mono font-bold uppercase text-[#A53860] tracking-wider">
-                            NARI-AI Safety Analysis
+                      <div className="px-3.5 py-3 bg-white border border-[#A53860] border-t-0 rounded-b-xl shadow-md space-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-[#A53860]" />
+                          <span className="text-[10px] font-mono font-bold uppercase text-[#A53860] tracking-wider">
+                            NARI AI Incident Assessment
                           </span>
                           {isAnalyzing && (
-                            <span className="ml-auto text-[8px] font-mono text-[#450920]/50 italic">
-                              generating…
+                            <span className="ml-auto text-[9px] font-mono text-[#450920]/50 italic">
+                              analyzing…
                             </span>
                           )}
                         </div>
                         {isAnalyzing ? (
-                          <div className="flex items-center gap-2 text-[10px] text-[#450920]/60">
-                            <Loader2 className="w-3 h-3 animate-spin text-[#A53860]" />
-                            Analysing hazard in real-time…
+                          <div className="flex items-center gap-2 text-xs text-[#450920]/70 py-1">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#A53860]" />
+                            Generating real-time threat response guidance…
                           </div>
                         ) : analysis ? (
-                          <p className="text-[10px] text-[#450920] leading-relaxed font-sans">
+                          <p className="text-xs text-[#450920] leading-relaxed font-sans">
                             {analysis}
                           </p>
                         ) : (
-                          <p className="text-[10px] text-[#450920]/40 italic font-sans">
+                          <p className="text-xs text-[#450920]/50 italic font-sans">
                             Preparing AI assessment…
                           </p>
                         )}
@@ -437,39 +465,37 @@ export default function SafeRouteNavigation({
 
               {filteredHazards.length === 0 && (
                 <div className="p-4 text-center text-xs text-[#450920] font-mono bg-[#F5EBE0] rounded-xl border border-[#f0c39c]">
-                  No reports under "{logFilter}".
+                  No reports logged under "{logFilter}".
                 </div>
               )}
             </div>
 
-            {/* Footer */}
-            <div className="pt-2 border-t border-[#f0c39c] flex items-center justify-between text-[9px] font-mono text-[#450920] shrink-0">
+            {/* Panel footer */}
+            <div className="pt-2 border-t border-[#f0c39c] flex items-center justify-between text-[10px] font-mono text-[#450920] shrink-0">
               <span className="flex items-center gap-1 font-bold">
                 <span className="w-2 h-2 rounded-full bg-[#A53860] animate-pulse inline-block" />
-                Community logs sync in real-time
+                Real-time consensus
               </span>
               <button
                 type="button"
                 onClick={startPinMode}
                 className="text-[#A53860] font-bold hover:underline cursor-pointer flex items-center gap-0.5"
               >
-                <Plus className="w-3 h-3" />
+                <Plus className="w-3.5 h-3.5" />
                 Pin New Hazard
               </button>
             </div>
           </div>
-        )}
 
-        {/* Quick-add button */}
-        {!isPinMode && !isAddingCustomPin && (
+          {/* Quick-add pin button */}
           <button
             onClick={startPinMode}
-            className="w-full bg-[#A53860] text-white px-4 py-2.5 rounded-xl text-[10px] uppercase tracking-wider font-bold hover:bg-[#8c2e50] transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+            className="w-full bg-[#A53860] text-white px-4 py-3 rounded-xl text-xs uppercase tracking-wider font-bold hover:bg-[#8c2e50] transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer touch-target"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-4 h-4" />
             Pin Community Hazard Alert
           </button>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -5,9 +5,10 @@ import { supabase } from '../lib/supabaseClient';
 
 interface LoginPageProps {
   onNavigateBack: () => void;
+  onGuestLogin?: (name: string) => void;
 }
 
-export default function LoginPage({ onNavigateBack }: LoginPageProps) {
+export default function LoginPage({ onNavigateBack, onGuestLogin }: LoginPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -28,32 +29,38 @@ export default function LoginPage({ onNavigateBack }: LoginPageProps) {
     }
   };
 
+  const handleDemoAccess = () => {
+    if (onGuestLogin) {
+      onGuestLogin('Ananya Dey (Verified Guardian)');
+    }
+  };
+
   return (
     <div
-      className="min-h-screen bg-[#F5EBE0] text-[#450920] font-sans antialiased flex flex-col justify-center items-center px-4 relative overflow-hidden"
+      className="min-h-screen min-h-[100dvh] bg-[#F5EBE0] text-[#450920] font-sans antialiased flex flex-col justify-center items-center px-4 py-8 relative overflow-hidden"
       id="nari-login-container"
     >
       {/* Background radial glow */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-[#A53860]/[0.08] blur-[120px] rounded-full pointer-events-none" />
 
       {/* Back button */}
-      <div className="absolute top-8 left-6 md:left-12">
+      <div className="absolute top-4 left-4 sm:top-8 sm:left-8 md:left-12">
         <button
           onClick={onNavigateBack}
-          className="text-xs uppercase tracking-widest text-[#450920] hover:text-[#A53860] transition-colors flex items-center gap-2 cursor-pointer font-bold"
+          className="text-xs uppercase tracking-widest text-[#450920] hover:text-[#A53860] transition-colors flex items-center gap-2 cursor-pointer font-bold touch-target"
         >
           ← Back to Overview
         </button>
       </div>
 
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md my-auto">
         {/* Header */}
-        <div className="text-center mb-8 space-y-2">
+        <div className="text-center mb-6 sm:mb-8 space-y-2">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#F9DBBD] border border-[#f0c39c] text-[9px] uppercase tracking-widest text-[#A53860] mb-2 font-mono font-bold shadow-sm">
             <Sparkles className="w-3 h-3 text-[#A53860]" />
             NARI AUTH GATEWAY
           </div>
-          <h2 className="text-3xl font-serif text-[#450920] tracking-tight italic font-bold">
+          <h2 className="text-2xl sm:text-3xl font-serif text-[#450920] tracking-tight italic font-bold">
             Guardian Login
           </h2>
           <p className="text-xs text-[#450920] font-semibold max-w-xs mx-auto">
@@ -66,22 +73,39 @@ export default function LoginPage({ onNavigateBack }: LoginPageProps) {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="p-6 md:p-8 rounded-2xl border border-[#f0c39c] bg-[#F9DBBD] shadow-md relative text-center"
+          className="p-5 sm:p-8 rounded-2xl border border-[#f0c39c] bg-[#F9DBBD]/90 backdrop-blur-md shadow-lg relative text-center space-y-4"
         >
           {errorMsg && (
-            <div className="mb-4 p-3 bg-[#A53860]/10 border border-[#A53860]/40 rounded-xl text-[11px] text-[#450920] font-bold">
+            <div className="p-3 bg-[#A53860]/10 border border-[#A53860]/40 rounded-xl text-[11px] text-[#450920] font-bold">
               ⚠️ {errorMsg}
             </div>
           )}
 
-          <p className="text-xs text-[#450920] font-bold mb-6">
-            Log in or sign up to access the safety network.
+          <p className="text-xs text-[#450920] font-bold">
+            Log in or test the safety console as a verified guardian:
           </p>
 
+          {/* Quick Demo Guardian Bypass (Zero OAuth setup required) */}
+          <button
+            onClick={handleDemoAccess}
+            className="w-full py-3.5 px-4 bg-[#A53860] hover:bg-[#8c2e50] text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-2.5 shadow-md shadow-[#A53860]/20 cursor-pointer touch-target group"
+          >
+            <ShieldCheck className="w-4 h-4 text-[#FFA5AB]" />
+            <span>Continue as Demo Guardian</span>
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          </button>
+
+          <div className="flex items-center gap-3 py-1">
+            <div className="h-[1px] bg-[#f0c39c] flex-1" />
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[#450920]/60 font-bold">Or OAuth</span>
+            <div className="h-[1px] bg-[#f0c39c] flex-1" />
+          </div>
+
+          {/* Google OAuth Button */}
           <button
             onClick={handleGoogleLogin}
             disabled={isLoading}
-            className="w-full py-3.5 bg-white text-[#450920] border border-[#f0c39c] hover:border-[#A53860] font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-[#FFF9F5] transition-all flex items-center justify-center gap-3 shadow-sm cursor-pointer disabled:opacity-50"
+            className="w-full py-3 px-4 bg-white text-[#450920] border border-[#f0c39c] hover:border-[#A53860] font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-[#FFF9F5] transition-all flex items-center justify-center gap-3 shadow-sm cursor-pointer disabled:opacity-50 touch-target"
           >
             {isLoading ? (
               <div className="w-4 h-4 border-2 border-[#A53860] border-t-transparent rounded-full animate-spin"></div>
@@ -93,14 +117,16 @@ export default function LoginPage({ onNavigateBack }: LoginPageProps) {
                 <path d="M12 5.6C13.61 5.6 15.06 6.16 16.21 7.25L19.36 4.1C17.46 2.33 14.97 1.22 12 1.22C7.69 1.22 3.98 3.48 2.17 7.3L5.84 10.14C6.7 7.53 9.13 5.6 12 5.6Z" fill="#EA4335"/>
               </svg>
             )}
-            {isLoading ? 'Connecting...' : 'Continue with Google'}
+            {isLoading ? 'Connecting...' : 'Sign in with Google'}
           </button>
 
-
+          <p className="text-[10px] text-[#450920]/70 font-medium pt-1">
+            ✨ Demo Guardian bypass enables full system testing with instant verified security clearance.
+          </p>
         </motion.div>
 
         {/* Security Watermark */}
-        <p className="text-center text-[8px] font-mono text-[#450920] uppercase tracking-[0.25em] mt-8 font-bold flex items-center justify-center gap-1.5">
+        <p className="text-center text-[8px] font-mono text-[#450920] uppercase tracking-[0.25em] mt-6 font-bold flex items-center justify-center gap-1.5">
           <ShieldCheck className="w-3 h-3 text-[#A53860]" />
           NARI Cryp-Shield Protocol • ECC-256 Enabled
         </p>

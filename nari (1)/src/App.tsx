@@ -50,9 +50,32 @@ export default function App() {
     return null;
   });
 
-  // Master page router
-  const [currentPage, setCurrentPage] = useState<MasterPage>('landing');
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  // Master page router with Demo / Guest bypass support
+  const [currentUser, setCurrentUser] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('demo') === 'true') {
+      return 'Ananya Dey (Verified Guardian)';
+    }
+    return localStorage.getItem('nari_demo_user');
+  });
+
+  const [currentPage, setCurrentPage] = useState<MasterPage>(() => {
+    if (typeof window === 'undefined') return 'landing';
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('demo') === 'true' || localStorage.getItem('nari_demo_user')) {
+      return 'app';
+    }
+    return 'landing';
+  });
+
+  const handleGuestLogin = (name: string) => {
+    setCurrentUser(name);
+    setCurrentPage('app');
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nari_demo_user', name);
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -67,8 +90,11 @@ export default function App() {
         setCurrentUser(session.user.user_metadata?.full_name || session.user.email);
         setCurrentPage('app');
       } else {
-        setCurrentUser(null);
-        setCurrentPage('landing');
+        // If not using demo bypass, return to landing
+        if (!localStorage.getItem('nari_demo_user')) {
+          setCurrentUser(null);
+          setCurrentPage('landing');
+        }
       }
     });
 
@@ -174,7 +200,15 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('nari_demo_user');
+      const url = new URL(window.location.href);
+      url.searchParams.delete('demo');
+      window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+    }
     await supabase.auth.signOut();
+    setCurrentUser(null);
+    setCurrentPage('landing');
     handleManualSOSCancel();
   };
 
@@ -206,6 +240,7 @@ export default function App() {
     return (
       <LoginPage 
         onNavigateBack={() => setCurrentPage('landing')}
+        onGuestLogin={handleGuestLogin}
       />
     );
   }
@@ -394,7 +429,7 @@ export default function App() {
       </div>
 
       {/* MASTER CONTAINER MAIN ACTIVE STAGE */}
-      <main className="flex-grow max-w-7xl w-full mx-auto p-4 md:p-8 space-y-8">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-3 py-4 sm:px-6 md:p-8 space-y-6 sm:space-y-8 pb-24 md:pb-8">
         
         {/* GLOBAL ACTIVE SOS BANNER */}
         {isSOSActive && (
@@ -551,14 +586,14 @@ export default function App() {
       </main>
 
       {/* FOOTER BAR */}
-      <footer className="border-t border-[#f0c39c] py-8 px-6 md:px-12 bg-[#F9DBBD] text-[#450920] text-[9px] uppercase tracking-[0.2em]">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+      <footer className="border-t border-[#f0c39c] py-6 md:py-8 px-4 md:px-12 bg-[#F9DBBD] text-[#450920] text-[9px] uppercase tracking-[0.2em] mb-14 md:mb-0">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6">
           
           <div className="flex items-center gap-2.5 font-serif text-[#450920] lowercase tracking-normal italic text-sm font-bold">
             NARI Safety Init. / 2026
           </div>
 
-          <div className="flex flex-wrap gap-8 font-bold">
+          <div className="flex flex-wrap justify-center gap-6 font-bold">
             <button onClick={() => setActiveTab('navigation')} className="hover:text-[#A53860] transition-all cursor-pointer">Navigation</button>
             <button onClick={() => setActiveTab('sos')} className="hover:text-[#A53860] transition-all cursor-pointer">Crisis Core</button>
             <button onClick={() => setActiveTab('profile')} className="hover:text-[#A53860] transition-all cursor-pointer">Security Card</button>
@@ -571,6 +606,81 @@ export default function App() {
         </div>
       </footer>
 
+      {/* MOBILE-FIRST FLOATING BOTTOM NAVIGATION BAR */}
+      <nav 
+        className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-[#F5EBE0]/95 backdrop-blur-xl border-t border-[#f0c39c] px-2 py-1.5 shadow-[0_-4px_24px_rgba(69,9,32,0.08)] flex items-center justify-around"
+        style={{ paddingBottom: 'calc(var(--safe-bottom) + 4px)' }}
+        aria-label="Mobile Navigation"
+      >
+        <button
+          onClick={() => setActiveTab('navigation')}
+          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer touch-target ${
+            activeTab === 'navigation' ? 'text-[#A53860] font-black' : 'text-[#450920]/70 hover:text-[#450920]'
+          }`}
+        >
+          <div className={`p-1 rounded-lg ${activeTab === 'navigation' ? 'bg-[#A53860]/15' : ''}`}>
+            <Compass className="w-4 h-4" />
+          </div>
+          <span className="text-[9px] uppercase tracking-wider font-mono mt-0.5">Route</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('sos')}
+          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer touch-target relative ${
+            activeTab === 'sos' ? 'text-[#A53860] font-black' : 'text-[#450920]/70 hover:text-[#450920]'
+          }`}
+        >
+          <div className={`p-1 rounded-lg ${
+            isSOSActive 
+              ? 'bg-[#A53860] text-white animate-bounce shadow-md' 
+              : activeTab === 'sos' 
+              ? 'bg-[#A53860]/15 text-[#A53860]' 
+              : ''
+          }`}>
+            <Siren className="w-4 h-4" />
+          </div>
+          <span className="text-[9px] uppercase tracking-wider font-mono mt-0.5">SOS</span>
+          {isSOSActive && (
+            <span className="absolute top-1 right-2 w-2 h-2 rounded-full bg-red-500 animate-ping" />
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab('wearable')}
+          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer touch-target ${
+            activeTab === 'wearable' ? 'text-[#A53860] font-black' : 'text-[#450920]/70 hover:text-[#450920]'
+          }`}
+        >
+          <div className={`p-1 rounded-lg ${activeTab === 'wearable' ? 'bg-[#A53860]/15' : ''}`}>
+            <Activity className="w-4 h-4" />
+          </div>
+          <span className="text-[9px] uppercase tracking-wider font-mono mt-0.5">IoT Hub</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('feedback')}
+          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer touch-target ${
+            activeTab === 'feedback' ? 'text-[#A53860] font-black' : 'text-[#450920]/70 hover:text-[#450920]'
+          }`}
+        >
+          <div className={`p-1 rounded-lg ${activeTab === 'feedback' ? 'bg-[#A53860]/15' : ''}`}>
+            <MessageSquare className="w-4 h-4" />
+          </div>
+          <span className="text-[9px] uppercase tracking-wider font-mono mt-0.5">Feedback</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-xl transition-all cursor-pointer touch-target ${
+            activeTab === 'profile' ? 'text-[#A53860] font-black' : 'text-[#450920]/70 hover:text-[#450920]'
+          }`}
+        >
+          <div className={`p-1 rounded-lg ${activeTab === 'profile' ? 'bg-[#A53860]/15' : ''}`}>
+            <User className="w-4 h-4" />
+          </div>
+          <span className="text-[9px] uppercase tracking-wider font-mono mt-0.5">Profile</span>
+        </button>
+      </nav>
     </div>
   );
 }
