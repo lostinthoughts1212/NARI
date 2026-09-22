@@ -7,18 +7,13 @@ import { Platform } from 'react-native';
  * iOS Simulator    → http://localhost:8000
  * Web              → http://localhost:8000
  */
-export const API_BASE_URL: string = Platform.select({
-  android: 'http://10.0.2.2:8000',
-  ios: 'http://localhost:8000',
-  default: 'http://localhost:8000',
-}) as string;
+export const API_BASE_URL: string = 'https://binding-placement-hydraulic-pastor.trycloudflare.com';
 
 /**
  * Public Web Tracker URL sent to emergency contacts in WhatsApp/SMS.
- * In dev: http://localhost:3000
- * In production: Change to your Netlify deployment URL (e.g. https://<your-site>.netlify.app)
+ * Live Netlify site link:
  */
-export const WEB_TRACKER_BASE_URL: string = 'http://localhost:3000';
+export const WEB_TRACKER_BASE_URL: string = 'https://nari-navproject.netlify.app';
 
 export const BHUBANESWAR_CENTER = {
   latitude: 20.2961,

@@ -7,9 +7,12 @@
  * In production: set VITE_NAV_API_URL to your deployed backend URL.
  */
 
-// Use the Vite proxy path during dev so there are zero CORS issues.
-// For production builds VITE_NAV_API_URL must point to the real backend.
-const NAV_API_BASE = import.meta.env.VITE_NAV_API_URL ?? '/nav-api';
+// Use VITE_NAV_API_URL if set, or Cloudflare tunnel on Netlify, or local Vite proxy.
+const NAV_API_BASE =
+  import.meta.env.VITE_NAV_API_URL ||
+  (typeof window !== 'undefined' && window.location.hostname.includes('netlify.app')
+    ? 'https://binding-placement-hydraulic-pastor.trycloudflare.com'
+    : '/nav-api');
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
