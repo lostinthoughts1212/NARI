@@ -28,6 +28,7 @@ import LandingPage from './components/LandingPage';
 import LoginPage from './components/LoginPage';
 import ProfileSection from './components/ProfileSection';
 import FeedbackComplaintsSection from './components/FeedbackComplaintsSection';
+import LivePublicTracker from './components/LivePublicTracker';
 import { supabase } from './lib/supabaseClient';
 
 type MasterPage = 'landing' | 'login' | 'app';
@@ -35,6 +36,20 @@ type DashboardSubTab = 'navigation' | 'sos' | 'wearable' | 'feedback' | 'profile
 
 
 export default function App() {
+  // Check for public emergency tracking token in URL (?track=journeyId or /track/journeyId)
+  const [trackingJourneyId, setTrackingJourneyId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    const trackParam = params.get('track');
+    if (trackParam) return trackParam;
+    const pathParts = window.location.pathname.split('/');
+    const trackIdx = pathParts.indexOf('track');
+    if (trackIdx !== -1 && pathParts[trackIdx + 1]) {
+      return pathParts[trackIdx + 1];
+    }
+    return null;
+  });
+
   // Master page router
   const [currentPage, setCurrentPage] = useState<MasterPage>('landing');
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -164,6 +179,20 @@ export default function App() {
   };
 
   // --- RENDERING ROUTER CORNERSTONES ---
+
+  if (trackingJourneyId) {
+    return (
+      <LivePublicTracker
+        journeyId={trackingJourneyId}
+        onExit={() => {
+          setTrackingJourneyId(null);
+          const url = new URL(window.location.href);
+          url.searchParams.delete('track');
+          window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
+        }}
+      />
+    );
+  }
 
   if (currentPage === 'landing') {
     return <LandingPage onNavigateToLogin={() => setCurrentPage('login')} />;

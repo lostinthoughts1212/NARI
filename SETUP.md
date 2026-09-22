@@ -1,118 +1,145 @@
-# Navsys Project Setup Guide
+# Navsys Project Setup & Execution Guide
 
-This guide will walk you through setting up the Navsys project from scratch on your local machine.
+This guide walks you through setting up and running the NARI safety ecosystem on your machine.
+
+---
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed on your system:
-- **Docker** and **Docker Compose**: Required for running the backend and Valhalla routing engine.
-- **Node.js** (v18+ recommended): Required for the frontend apps.
+Ensure you have the following installed on your system:
+- **Docker Desktop**: Required for running the FastAPI backend and Valhalla routing engine. Make sure Docker Desktop is launched and running.
+- **Node.js** (v18+ recommended): Required for frontend apps.
 - **npm**: For managing frontend dependencies.
-- **Git**: For version control (optional but recommended).
+- **cloudflared** (Optional but recommended for mobile access): For creating public HTTPS tunnels without port-forwarding.
+- **Git**: For source control and deployment to Netlify/GitHub.
+
+---
 
 ## Project Structure
 
 ```
 navsys/
-├── backend/                   # FastAPI Python backend (routing + danger zones)
-├── nari-app/                  # React Native (Expo) mobile + web frontend
-├── nari (1)/                  # React + Vite web dashboard frontend  ← main web UI
-├── custom_files/              # Valhalla routing tiles and config
-├── docker-compose.yml         # Orchestrates backend + Valhalla
+├── backend/                   # FastAPI Python backend (Valhalla routing + danger polygons)
+├── nari-app/                  # React Native (Expo) mobile + web app with live turn-by-turn HUD
+├── nari (1)/                  # React + Vite web safety console & public emergency tracker
+├── custom_files/              # Valhalla routing tiles and config for Bhubaneswar
+├── docker-compose.yml         # Orchestrates backend + Valhalla containers
 └── bhubaneswar_women_safe_route_synthetic_dataset.csv
 ```
 
 ---
 
-## Step 1 — Start the Backend Services (Docker)
+## Quick Startup Commands (Step-by-Step)
 
-The backend (FastAPI) and routing engine (Valhalla) are fully dockerized.
+Open separate terminals for each component:
 
-1. Open a terminal and navigate to the project root directory:
-   ```bash
-   cd navsys
+### Step 1 — Start Backend & Valhalla (Docker)
+1. Open **Docker Desktop** on Windows.
+2. In terminal 1, run:
+   ```powershell
+   cd c:\Users\satvi\Downloads\navsys_project
+   docker-compose up -d --build
    ```
-
-2. Start the services:
-   ```bash
-   docker-compose up --build
-   ```
-   *(Append `-d` to run in the background)*
-
-   This will:
-   - Pull the Valhalla routing engine image (uses the pre-built tiles in `custom_files/`).
-   - Build the FastAPI Python backend image.
-   - Mount the Bhubaneswar dataset.
-   - Start both containers.  
-   > **Note**: The backend waits for Valhalla to pass its health check before starting.
-
-3. Verify the services are running:
-   - **Backend API**: [http://localhost:8000/health](http://localhost:8000/health)
+3. Verify the services are active:
+   - **Backend API**: [http://localhost:8000/health](http://localhost:8000/health) (returns `{"status":"ok","polygons_loaded":...}`)
    - **Valhalla Engine**: [http://localhost:8002/status](http://localhost:8002/status)
 
 ---
 
-## Step 2A — Run the Web Dashboard (`nari (1)`)
-
-The primary web interface — a full NARI safety dashboard with navigation, SOS, wearable hub, feedback, and profile tabs.
-
-1. Navigate to the web app directory:
-   ```bash
-   cd "navsys/nari (1)"
-   ```
-
-2. Copy the example environment file:
-   ```bash
-   cp .env.example .env
-   ```
-   The default `VITE_NAV_API_URL=http://localhost:8000` is correct for local development.
-
-3. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-4. Start the dev server:
-   ```bash
-   npm run dev
-   ```
-
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.  
-   - **Login credentials**: Username `nari_guardian_1`, Password `secure2026` (or any username/password)
-   - Navigate to the **Route Navigation** tab to use the live map.
+### Step 2 — Start Cloudflare Tunnel (For Mobile & Remote Testing)
+To allow physical mobile phones running on 4G/5G to access your local Valhalla backend:
+```powershell
+cloudflared tunnel --url http://localhost:8000
+```
+- Copy the generated `https://<random-id>.trycloudflare.com` URL.
+- Paste this URL as `API_BASE_URL` in [nari-app/src/constants/Config.ts](file:///c:/Users/satvi/Downloads/navsys_project/nari-app/src/constants/Config.ts).
 
 ---
 
-## Step 2B — Run the Mobile App (`nari-app`) — Optional
+### Step 3 — Start Web Safety Dashboard & Emergency Tracker (`nari (1)`)
+The primary web interface and public tracking receiver:
+```powershell
+cd "c:\Users\satvi\Downloads\navsys_project\nari (1)"
+npm install
+npm run dev
+```
+- **Local URL**: [http://localhost:3000](http://localhost:3000)
+- **Login credentials**: Username `nari_guardian_1`, Password `secure2026` (or any credentials)
+- **Public Emergency Tracking Route**: [http://localhost:3000/?track=<journeyId>](http://localhost:3000/?track=test) (no login required for emergency contacts!)
 
-The React Native / Expo mobile app (Android, iOS, or web).
+---
 
-1. Navigate to the mobile app directory:
-   ```bash
-   cd navsys/nari-app
-   ```
+### Step 4 — Start Mobile Navigation App (`nari-app`)
+The React Native / Expo application with active turn-by-turn guidance and live GPS sync:
+```powershell
+cd c:\Users\satvi\Downloads\navsys_project\nari-app
+npm install
+npm start
+```
+- **Physical Device**: Scan the QR code with the **Expo Go** app on Android/iOS.
+- **Web Browser**: Run `npm run web` to test in your browser directly.
+- **Android Emulator**: Press `a` in the terminal.
 
-2. Install the dependencies:
-   ```bash
-   npm install
-   ```
+---
 
-3. Start the Expo development server:
-   ```bash
-   npm start
-   ```
+## 🚀 Newly Implemented Features & How to Test
 
-4. Run the App:
-   - **Physical Device**: Scan the QR code with the **Expo Go** app.
-   - **Simulator/Emulator**: Press `i` (iOS) or `a` (Android).
-   - **Web**: Press `w`.
+### 1. Google Maps-Style 3D Camera Zooming
+- In `nari-app`, set start and destination points on the map.
+- Tap **Find Safe Route**.
+- Tap **Start Safe Journey**:
+  - The camera smoothly swoops from city-wide overview into a close **3D street-level perspective** (`zoom: 18`, `pitch: 45°`).
+  - As you move, the camera auto-rotates with your compass walking heading.
+  - Tapping **End Journey** smoothly flies the camera back out to the full route overview.
+
+### 2. Live Turn-by-Turn Guidance HUD
+- A floating turn banner at the top shows:
+  - Next maneuver icon (Left, Right, Straight)
+  - Distance countdown (e.g. *"In 55 m"*)
+  - Street name and action instruction.
+- The bottom drawer displays live walking speed (km/h), remaining distance, and ETA.
+
+### 3. Off-Route Safety Watchdog
+- If you stray > 65 meters away from the safe illuminated corridor:
+  - The app displays an amber warning banner: *"OFF ROUTE (~X m) - Return to illuminated path"*.
+  - The cloud status automatically shifts to `off_route`, alerting contacts on their tracking map.
+
+### 4. Real-Time Emergency Route Sharing (Firebase)
+- When a journey starts, tap **Share Route** to open the native share sheet and send your live tracking link via WhatsApp/SMS.
+- Contacts open `http://localhost:3000/?track=<journeyId>` (or your deployed Netlify URL):
+  - No login or app installation required.
+  - Contacts see your moving avatar, heading orientation, route polyline, and danger zones in real time.
+  - If you tap **SOS** in the app, the contact's browser immediately enters critical alarm mode with direct police dispatch (112) options.
+
+---
+
+## Deploying to Netlify / GitHub
+
+To push the latest live tracking features to your GitHub repo so Netlify updates:
+```powershell
+git add .
+git commit -m "Feat: Live navigation, Google Maps zooming, and Firebase public tracker"
+git push origin main
+```
+
+> [!TIP]
+> After your Netlify site deploys (e.g. `https://your-nari-site.netlify.app`), update `WEB_TRACKER_BASE_URL` in [nari-app/src/constants/Config.ts](file:///c:/Users/satvi/Downloads/navsys_project/nari-app/src/constants/Config.ts) to your Netlify URL so shared WhatsApp links point directly to your live production website.
 
 ---
 
 ## Troubleshooting
 
-- **Ports already in use**: If ports `8000` or `8002` are occupied, stop those services or change the port mappings in `docker-compose.yml`.
-- **App cannot connect to the backend on a physical device**: Update `nari-app/src/constants/Config.ts` to point to your machine's LAN IP (e.g., `http://192.168.x.x:8000`).
-- **Missing Dataset**: Ensure `bhubaneswar_women_safe_route_synthetic_dataset.csv` stays in the `navsys/` root directory — the backend Docker container mounts it from there.
-- **Backend shows "Offline" in the map UI**: Make sure both Docker containers are running (`docker-compose ps`). The web dashboard auto-retries on load.
-- **Valhalla not ready yet**: The backend health check waits up to ~2 minutes for Valhalla tiles to be served. If `docker-compose up` fails, run it again — tiles only need to be processed once.
+- **Docker Desktop not running**: If `docker-compose up` fails with pipe engine errors, launch the Docker Desktop application first.
+- **Ports already in use**: If port 8000 or 8002 is occupied, stop any existing containers (`docker stop $(docker ps -q)`) or adjust `docker-compose.yml`.
+- **Valhalla initializing**: The backend health check waits for Valhalla tiles to load (~1-2 minutes on first run). If initial startup times out, simply re-run `docker-compose up -d`.
+- **Firebase Permission Denied**: Ensure your Firebase Realtime Database rules allow journey reads and writes:
+  ```json
+  {
+    "rules": {
+      "journeys": {
+        ".read": true,
+        ".write": true
+      }
+    }
+  }
+  ```

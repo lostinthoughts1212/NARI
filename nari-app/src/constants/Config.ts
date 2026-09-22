@@ -13,6 +13,13 @@ export const API_BASE_URL: string = Platform.select({
   default: 'http://localhost:8000',
 }) as string;
 
+/**
+ * Public Web Tracker URL sent to emergency contacts in WhatsApp/SMS.
+ * In dev: http://localhost:3000
+ * In production: Change to your Netlify deployment URL (e.g. https://<your-site>.netlify.app)
+ */
+export const WEB_TRACKER_BASE_URL: string = 'http://localhost:3000';
+
 export const BHUBANESWAR_CENTER = {
   latitude: 20.2961,
   longitude: 85.8245,

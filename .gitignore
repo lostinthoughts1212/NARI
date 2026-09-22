@@ -31,3 +31,5 @@ custom_files/*.csv
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+custom_files/valhalla_tiles/

@@ -21,7 +21,7 @@ import os
 # Load polygons once at startup
 CSV_PATH = os.environ.get("CSV_PATH", "../bhubaneswar_women_safe_route_synthetic_dataset.csv")
 HIGH_RISK_POLYGONS = get_high_risk_polygons(CSV_PATH)
-VALHALLA_URL = os.environ.get("VALHALLA_URL", "http://localhost:8002/route")
+VALHALLA_URL = os.environ.get("VALHALLA_URL", "http://127.0.0.1:8002/route")
 
 class RouteRequest(BaseModel):
     start_lat: float
