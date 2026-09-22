@@ -193,12 +193,12 @@ function HazardFocuser({ target }: { target: LatLng | null }) {
 }
 
 // Automatically recalculate Leaflet map dimensions on mobile devices & viewport shifts
-function MapResizer() {
+function MapResizer({ isMaximized }: { isMaximized?: boolean }) {
   const map = useMap();
   useEffect(() => {
     map.invalidateSize();
-    const t1 = setTimeout(() => map.invalidateSize(), 250);
-    const t2 = setTimeout(() => map.invalidateSize(), 800);
+    const t1 = setTimeout(() => map.invalidateSize(), 150);
+    const t2 = setTimeout(() => map.invalidateSize(), 500);
     const onResize = () => map.invalidateSize();
     window.addEventListener('resize', onResize);
     return () => {
@@ -206,7 +206,7 @@ function MapResizer() {
       clearTimeout(t2);
       window.removeEventListener('resize', onResize);
     };
-  }, [map]);
+  }, [map, isMaximized]);
   return null;
 }
 
@@ -247,6 +247,21 @@ export default function LiveNavMap({
   const [backendOnline, setBackendOnline] = useState(false);
   const [errorMsg,      setErrorMsg]      = useState<string | null>(null);
   const [fitCoords,     setFitCoords]     = useState<LatLng[]>([]);
+
+  // ── Maximize & Options UI State ───────────────────────────────────────────
+  const [isMaximized,   setIsMaximized]   = useState(false);
+  const [showOptions,   setShowOptions]   = useState(false);
+
+  // Exit fullscreen on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isMaximized) {
+        setIsMaximized(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMaximized]);
 
   // ── Live Navigation & Firebase State ───────────────────────────────────────
   const [isNavigating,      setIsNavigating]      = useState(false);
@@ -541,17 +556,21 @@ export default function LiveNavMap({
     km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(2)} km`;
 
   return (
-    <div className={`flex flex-col rounded-2xl overflow-hidden border shadow-sm bg-[#0f0814] h-[640px] sm:h-[680px] md:h-[clamp(540px,75vh,780px)] min-h-[560px] ${
-      isSosActive ? 'border-red-500 ring-4 ring-red-500/50' : 'border-[#f0c39c]'
-    }`}>
-
+    <div
+      className={`transition-all duration-300 ${
+        isMaximized
+          ? 'fixed inset-0 z-[9999] w-screen h-screen bg-[#12040c] flex flex-col'
+          : `relative flex flex-col rounded-2xl overflow-hidden border-2 border-[#f0c39c] shadow-xl bg-[#12040c] h-[600px] sm:h-[660px] md:h-[clamp(560px,78vh,820px)] min-h-[500px] ${
+              isSosActive ? 'ring-4 ring-red-500' : ''
+            }`
+      }`}
+    >
       {/* Leaflet cursor + animation overrides */}
       <style>{`
         .leaflet-container { 
           cursor: ${isPinMode ? 'cell' : 'crosshair'} !important; 
           width: 100% !important;
           height: 100% !important;
-          min-height: 320px !important;
         }
         .leaflet-control-attribution { font-size: 9px !important; opacity: 0.5; }
         @keyframes ping {
@@ -561,506 +580,472 @@ export default function LiveNavMap({
         }
       `}</style>
 
-      {/* ── TOP STATUS BAR ── */}
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-[#1e0a14]/95 border-b border-[#A53860]/30 shrink-0 flex-wrap">
-        <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-full bg-[#A53860] border-2 border-[#FFA5AB] flex items-center justify-center shrink-0">
+      {/* ── SLIM HEADER / BRAND & QUICK ACTIONS ── */}
+      <div className="flex items-center justify-between gap-2 px-3.5 py-2 bg-[#200816]/95 border-b border-[#f0c39c]/40 shrink-0 z-10 backdrop-blur-md">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-6 h-6 rounded-full bg-[#A53860] border border-[#FFA5AB] flex items-center justify-center shrink-0 shadow-sm">
             <span className="text-white font-black text-xs">N</span>
           </div>
-          <div>
-            <p className="text-white font-bold text-sm leading-none">NARI Nav</p>
-            <p className="text-[#c4a0b0] text-[10px]">Safe Routes · Bhubaneswar</p>
+          <div className="flex items-baseline gap-1.5 truncate">
+            <span className="text-white font-bold text-xs">NARI Nav</span>
+            <span className="text-[#FFA5AB]/80 text-[10px] hidden sm:inline">· Safe Routes Bhubaneswar</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {isNavigating ? (
-            <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 text-emerald-300 font-bold text-xs rounded-full border border-emerald-500/40 animate-pulse">
-                <span className="w-2 h-2 rounded-full bg-emerald-400"></span> Live Navigation Active
-              </span>
-              <button
-                onClick={() => handleShareJourney()}
-                className="flex items-center gap-1 px-3 py-1 bg-[#2a1020] hover:bg-[#3d1830] border border-[#A53860]/50 text-white rounded-full text-xs font-semibold transition cursor-pointer"
-              >
-                <span>🔗</span> {copiedLink ? 'Link Copied!' : 'Share Live Link'}
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 bg-[#0f0814]/80 border border-[#A53860]/30 rounded-full px-3 py-1">
-              <span
-                className="w-2 h-2 rounded-full inline-block"
-                style={{ backgroundColor: tapMode === 'origin' ? '#10B981' : '#E91E8C' }}
-              />
-              <span className="text-[#c4a0b0] text-[11px] font-mono">
-                {tapMode === 'origin' ? 'Click: Set Start' : 'Click: Set Destination'}
-              </span>
-            </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Active Navigation Badge */}
+          {isNavigating && (
+            <span className="flex items-center gap-1.5 px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 font-bold text-[10px] rounded-full border border-emerald-500/40 animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Live Navigation Active
+            </span>
           )}
 
           {/* Backend indicator */}
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`w-2 h-2 rounded-full inline-block ${
-                backendOnline ? 'bg-[#10B981] animate-pulse' : 'bg-[#EF4444]'
-              }`}
-            />
-            <span className="text-[#c4a0b0] text-[10px] font-mono">
-              {backendOnline ? 'Online' : 'Offline'}
-            </span>
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/40 border border-[#f0c39c]/20 text-[10px] font-mono text-[#FFA5AB]">
+            <span className={`w-1.5 h-1.5 rounded-full ${backendOnline ? 'bg-[#10B981] animate-pulse' : 'bg-[#EF4444]'}`} />
+            <span className="hidden xs:inline">{backendOnline ? 'Online' : 'Offline'}</span>
           </div>
+
+          {/* Options Drawer Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowOptions((v) => !v)}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer border ${
+              showOptions
+                ? 'bg-[#A53860] text-white border-[#FFA5AB]'
+                : 'bg-white/10 hover:bg-white/15 text-[#FFA5AB] border-[#f0c39c]/30'
+            }`}
+            title="Map Options & Danger Zones"
+          >
+            <span>⚙️</span>
+            <span className="hidden sm:inline">Options</span>
+          </button>
+
+          {/* Maximize / Minimize Button */}
+          <button
+            type="button"
+            onClick={() => setIsMaximized((v) => !v)}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 border border-[#f0c39c]/30 text-white text-xs font-semibold transition cursor-pointer"
+            title={isMaximized ? 'Exit Fullscreen (Esc)' : 'Maximize Map'}
+          >
+            <span>{isMaximized ? '🗗' : '⛶'}</span>
+            <span className="hidden sm:inline">{isMaximized ? 'Exit' : 'Maximize'}</span>
+          </button>
         </div>
       </div>
 
-      {/* ── MAP CONTAINER ── */}
-      <div className="flex-1 flex flex-col md:flex-row min-h-0 relative">
-        <div className="flex-1 relative h-[360px] sm:h-[420px] md:h-full min-h-[320px]">
-          <MapContainer
-            center={BBSR_CENTER}
-            zoom={13}
-            className="w-full h-full"
-            style={{ width: '100%', height: '100%', minHeight: '320px' }}
-            zoomControl={false}
-          >
-            <MapResizer />
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              maxZoom={19}
-            />
+      {/* ── MAP CANVAS (100% Full Bleed) ── */}
+      <div className="flex-1 relative w-full h-full min-h-0">
+        <MapContainer
+          center={BBSR_CENTER}
+          zoom={13}
+          className="w-full h-full"
+          style={{ width: '100%', height: '100%' }}
+          zoomControl={false}
+        >
+          <MapResizer isMaximized={isMaximized} />
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            maxZoom={19}
+          />
 
-            <MapClickHandler
-              tapMode={tapMode}
-              onMapPress={handleMapPress}
-              isPinMode={isPinMode}
-              onPinCoords={onPinCoords}
-              disabled={isNavigating}
-            />
-            {!isNavigating && fitCoords.length > 1 && <MapFitter coords={fitCoords} />}
-            {focusTarget && <HazardFocuser target={focusTarget} />}
-            {isNavigating && liveLocation && (
-              <NavigationFocuser center={[liveLocation.latitude, liveLocation.longitude]} />
-            )}
+          <MapClickHandler
+            tapMode={tapMode}
+            onMapPress={handleMapPress}
+            isPinMode={isPinMode}
+            onPinCoords={onPinCoords}
+            disabled={isNavigating}
+          />
+          {!isNavigating && fitCoords.length > 1 && <MapFitter coords={fitCoords} />}
+          {focusTarget && <HazardFocuser target={focusTarget} />}
+          {isNavigating && liveLocation && (
+            <NavigationFocuser center={[liveLocation.latitude, liveLocation.longitude]} />
+          )}
 
-            {/* Danger zones (backend polygons) */}
-            {dangerZones.map((zone, i) => (
-              <Polygon
-                key={`z${i}`}
-                positions={zone.map((c) => [c.latitude, c.longitude])}
-                pathOptions={{
-                  fillColor:   '#EF4444',
-                  fillOpacity: 0.18,
-                  color:       '#EF4444',
-                  weight:      1.5,
-                  opacity:     0.7,
-                }}
+          {/* Danger zones (backend polygons) */}
+          {dangerZones.map((zone, i) => (
+            <Polygon
+              key={`z${i}`}
+              positions={zone.map((c) => [c.latitude, c.longitude])}
+              pathOptions={{
+                fillColor:   '#EF4444',
+                fillOpacity: 0.18,
+                color:       '#EF4444',
+                weight:      1.5,
+                opacity:     0.7,
+              }}
+            />
+          ))}
+
+          {/* Alternate routes */}
+          {!isNavigating &&
+            altRoutes.map((alt, i) => (
+              <Polyline
+                key={`alt${i}`}
+                positions={alt.map((c) => [c.latitude, c.longitude])}
+                pathOptions={{ color: '#888', weight: 4, opacity: 0.35, dashArray: '8 5' }}
               />
             ))}
 
-            {/* Alternate routes */}
-            {!isNavigating &&
-              altRoutes.map((alt, i) => (
-                <Polyline
-                  key={`alt${i}`}
-                  positions={alt.map((c) => [c.latitude, c.longitude])}
-                  pathOptions={{ color: '#888', weight: 4, opacity: 0.35, dashArray: '8 5' }}
-                />
-              ))}
-
-            {/* Safe route — glow layer + solid line */}
-            {routeCoords.length > 0 && (
-              <>
-                <Polyline
-                  positions={routeCoords.map((c) => [c.latitude, c.longitude])}
-                  pathOptions={{
-                    color: isSosActive ? '#EF4444' : offRouteDistance > 65 ? '#F59E0B' : '#10B981',
-                    weight: 14,
-                    opacity: 0.2,
-                  }}
-                />
-                <Polyline
-                  positions={routeCoords.map((c) => [c.latitude, c.longitude])}
-                  pathOptions={{
-                    color: isSosActive ? '#EF4444' : offRouteDistance > 65 ? '#F59E0B' : '#10B981',
-                    weight: 4.5,
-                    opacity: 0.95,
-                    lineCap: 'round',
-                    lineJoin: 'round',
-                  }}
-                />
-              </>
-            )}
-
-            {/* Community hazard markers */}
-            {hazards
-              .filter((h) => h.realLat !== undefined && h.realLng !== undefined)
-              .map((h) => {
-                const isHL = highlightedHazardId === h.id;
-                return (
-                  <Marker
-                    key={h.id}
-                    position={[h.realLat!, h.realLng!]}
-                    icon={makeHazardIcon(h.type, isHL)}
-                    eventHandlers={{ click: () => onHazardMarkerClick?.(h.id) }}
-                    zIndexOffset={isHL ? 1000 : 0}
-                  />
-                );
-              })}
-
-            {pendingPinCoords && (
-              <Marker
-                position={[pendingPinCoords.lat, pendingPinCoords.lng]}
-                icon={makePendingPinIcon()}
+          {/* Safe route — glow layer + solid line */}
+          {routeCoords.length > 0 && (
+            <>
+              <Polyline
+                positions={routeCoords.map((c) => [c.latitude, c.longitude])}
+                pathOptions={{
+                  color: isSosActive ? '#EF4444' : offRouteDistance > 65 ? '#F59E0B' : '#10B981',
+                  weight: 14,
+                  opacity: 0.2,
+                }}
               />
-            )}
-
-            {myLocation  && <Marker position={[myLocation.latitude,  myLocation.longitude]}  icon={myLocIcon}  />}
-            {origin      && <Marker position={[origin.latitude,      origin.longitude]}      icon={originIcon} />}
-            {destination && <Marker position={[destination.latitude, destination.longitude]} icon={destIcon}   />}
-
-            {/* Active Moving GPS User Marker */}
-            {isNavigating && liveLocation && (
-              <Marker
-                position={[liveLocation.latitude, liveLocation.longitude]}
-                icon={createLiveMovingIcon(liveLocation.heading, isSosActive, offRouteDistance > 65)}
+              <Polyline
+                positions={routeCoords.map((c) => [c.latitude, c.longitude])}
+                pathOptions={{
+                  color: isSosActive ? '#EF4444' : offRouteDistance > 65 ? '#F59E0B' : '#10B981',
+                  weight: 4.5,
+                  opacity: 0.95,
+                  lineCap: 'round',
+                  lineJoin: 'round',
+                }}
               />
-            )}
-          </MapContainer>
-
-          {/* ── TURN-BY-TURN HUD (When Navigating) ── */}
-          {isNavigating && (
-            <div className="absolute top-3 inset-x-3 z-[1000] flex justify-center pointer-events-none">
-              <div className={`pointer-events-auto px-4 py-2.5 rounded-2xl backdrop-blur-md shadow-2xl border flex items-center gap-3 max-w-md w-full ${
-                isSosActive
-                  ? 'bg-red-950/90 border-red-500 text-white'
-                  : offRouteDistance > 65
-                  ? 'bg-amber-950/90 border-amber-500 text-amber-200'
-                  : 'bg-[#1e0a14]/95 border-emerald-500/50 text-white'
-              }`}>
-                <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-xl shrink-0">
-                  {isSosActive ? '🚨' : offRouteDistance > 65 ? '⚠️' : '➡️'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-black uppercase tracking-wide">
-                    {isSosActive
-                      ? 'DISTRESS SOS ACTIVE'
-                      : offRouteDistance > 65
-                      ? `OFF SAFE CORRIDOR (~${Math.round(offRouteDistance)} m)`
-                      : distToManeuver > 0
-                      ? `In ${distToManeuver} m`
-                      : 'Follow Safe Corridor'}
-                  </p>
-                  <p className="text-[11px] text-[#c4a0b0] truncate mt-0.5">
-                    {isSosActive
-                      ? 'Distress telemetry streaming to emergency contacts'
-                      : offRouteDistance > 65
-                      ? 'Please return to illuminated safe route'
-                      : activeManeuver?.instruction || 'Proceed towards your destination'}
-                  </p>
-                </div>
-                <button
-                  onClick={handleTriggerSos}
-                  className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition cursor-pointer shrink-0 shadow"
-                >
-                  SOS
-                </button>
-              </div>
-            </div>
+            </>
           )}
 
-          {/* Quick Floating Action: Use My Location (top-right on mobile) */}
-          {!isNavigating && (
-            <button
-              onClick={handleUseMyLocation}
-              disabled={locLoading}
-              className="md:hidden absolute top-3 right-3 z-[1000] flex items-center gap-1.5 px-3 py-1.5 bg-[#1e0a14]/90 hover:bg-[#A53860] border border-[#FFA5AB]/50 text-white rounded-full text-[11px] font-bold shadow-lg backdrop-blur-sm transition-all cursor-pointer disabled:opacity-60"
-              title="Use My Location"
-            >
-              {locLoading ? (
-                <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
-              ) : (
-                <span>📍</span>
+          {/* Community hazard markers */}
+          {hazards
+            .filter((h) => h.realLat !== undefined && h.realLng !== undefined)
+            .map((h) => {
+              const isHL = highlightedHazardId === h.id;
+              return (
+                <Marker
+                  key={h.id}
+                  position={[h.realLat!, h.realLng!]}
+                  icon={makeHazardIcon(h.type, isHL)}
+                  eventHandlers={{ click: () => onHazardMarkerClick?.(h.id) }}
+                  zIndexOffset={isHL ? 1000 : 0}
+                />
+              );
+            })}
+
+          {pendingPinCoords && (
+            <Marker
+              position={[pendingPinCoords.lat, pendingPinCoords.lng]}
+              icon={makePendingPinIcon()}
+            />
+          )}
+
+          {myLocation  && <Marker position={[myLocation.latitude,  myLocation.longitude]}  icon={myLocIcon}  />}
+          {origin      && <Marker position={[origin.latitude,      origin.longitude]}      icon={originIcon} />}
+          {destination && <Marker position={[destination.latitude, destination.longitude]} icon={destIcon}   />}
+
+          {/* Active Moving GPS User Marker */}
+          {isNavigating && liveLocation && (
+            <Marker
+              position={[liveLocation.latitude, liveLocation.longitude]}
+              icon={createLiveMovingIcon(liveLocation.heading, isSosActive, offRouteDistance > 65)}
+            />
+          )}
+        </MapContainer>
+
+        {/* ── FLOATING ROUTE SETUP ISLAND (Top of Map, when NOT Navigating) ── */}
+        {!isNavigating && (
+          <div className="absolute top-3 inset-x-3 sm:left-3 sm:right-auto sm:max-w-xl z-[1000] flex flex-col gap-1.5 pointer-events-none">
+            <div className="pointer-events-auto flex flex-wrap items-center gap-1.5 p-2 rounded-2xl bg-[#200816]/95 backdrop-blur-md border border-[#FFA5AB]/40 shadow-2xl">
+              {/* Start Pill */}
+              <button
+                type="button"
+                onClick={() => setTapMode('origin')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs transition cursor-pointer ${
+                  tapMode === 'origin'
+                    ? 'bg-[#10B981]/25 border border-[#10B981] text-white font-bold'
+                    : 'bg-white/5 border border-transparent text-[#FFA5AB]/80 hover:bg-white/10'
+                }`}
+                title="Tap map to set Start Point"
+              >
+                <span className="w-2 h-2 rounded-full bg-[#10B981] shrink-0" />
+                <span className="truncate max-w-[110px] sm:max-w-[140px]">
+                  {origin ? `${origin.latitude.toFixed(4)}, ${origin.longitude.toFixed(4)}` : 'Tap Start'}
+                </span>
+              </button>
+
+              <span className="text-[#FFA5AB]/40 text-xs">→</span>
+
+              {/* Destination Pill */}
+              <button
+                type="button"
+                onClick={() => setTapMode('destination')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs transition cursor-pointer ${
+                  tapMode === 'destination'
+                    ? 'bg-[#E91E8C]/25 border border-[#E91E8C] text-white font-bold'
+                    : 'bg-white/5 border border-transparent text-[#FFA5AB]/80 hover:bg-white/10'
+                }`}
+                title="Tap map to set Destination"
+              >
+                <span className="w-2 h-2 rounded-full bg-[#E91E8C] shrink-0" />
+                <span className="truncate max-w-[110px] sm:max-w-[140px]">
+                  {destination ? `${destination.latitude.toFixed(4)}, ${destination.longitude.toFixed(4)}` : 'Tap Dest'}
+                </span>
+              </button>
+
+              {/* My Location Button */}
+              <button
+                type="button"
+                onClick={handleUseMyLocation}
+                disabled={locLoading}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#A53860]/25 hover:bg-[#A53860]/40 border border-[#A53860]/50 text-[#FFA5AB] text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+                title="Use current GPS location"
+              >
+                {locLoading ? (
+                  <span className="w-3 h-3 border-2 border-[#FFA5AB] border-t-transparent rounded-full animate-spin inline-block" />
+                ) : (
+                  <span>📍</span>
+                )}
+                <span className="hidden sm:inline">My Loc</span>
+              </button>
+
+              {/* Clear Points Button */}
+              {(origin || destination) && (
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  className="p-1.5 rounded-xl text-red-400 hover:text-white hover:bg-red-500/20 text-xs cursor-pointer transition"
+                  title="Clear selected points"
+                >
+                  ✕
+                </button>
               )}
-              <span>My Loc</span>
-            </button>
-          )}
 
-          {/* Floating Action Button: Mobile View */}
-          {origin && destination && (
-            <div className="md:hidden absolute bottom-4 inset-x-0 z-[1000] flex justify-center px-4 pointer-events-none">
-              {isNavigating ? (
-                <div className="pointer-events-auto flex items-center gap-2">
-                  <button
-                    onClick={() => handleShareJourney()}
-                    className="px-4 py-2.5 bg-[#2a1020] border border-[#A53860]/50 text-white rounded-full text-xs font-bold shadow-xl cursor-pointer"
-                  >
-                    🔗 Share Route
-                  </button>
-                  <button
-                    onClick={handleEndJourney}
-                    className="px-5 py-2.5 bg-red-600 text-white rounded-full text-xs font-bold shadow-xl cursor-pointer"
-                  >
-                    End Journey
-                  </button>
-                </div>
-              ) : routeCoords.length > 0 ? (
+              {/* Find Safe Route Button (Active when both points are set) */}
+              {origin && destination && routeCoords.length === 0 && (
                 <button
-                  onClick={handleStartJourney}
-                  disabled={loading}
-                  className="pointer-events-auto flex items-center gap-2 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 border-2 border-emerald-400 text-white rounded-full text-xs font-bold shadow-2xl transition-all cursor-pointer animate-pulse"
-                >
-                  <span>🛡️</span> Start Safe Journey
-                </button>
-              ) : (
-                <button
+                  type="button"
                   onClick={handleGetRoute}
                   disabled={loading}
-                  className="pointer-events-auto flex items-center gap-2 px-5 py-2.5 bg-[#A53860] hover:bg-[#8c2e50] border-2 border-[#FFA5AB] text-white rounded-full text-xs font-bold shadow-2xl transition-all cursor-pointer animate-bounce"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#A53860] hover:bg-[#8c2e50] border border-[#FFA5AB]/60 text-white text-xs font-bold shadow-lg cursor-pointer transition animate-bounce ml-auto sm:ml-0"
                 >
                   {loading ? (
-                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                    <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
                   ) : (
                     <span>🧭</span>
                   )}
-                  <span>Find Safe Route</span>
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Pin mode instruction overlay */}
-          {isPinMode && (
-            <div className="absolute inset-x-0 top-3 z-[1000] flex justify-center pointer-events-none">
-              <div className="px-4 py-2 bg-[#A53860] text-white text-xs font-bold font-mono rounded-full shadow-xl animate-pulse">
-                📍 Click anywhere on the map to drop your hazard pin
-              </div>
-            </div>
-          )}
-
-          {/* Loading overlay while zones fetch */}
-          {loadingZones && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0f0814]/70 z-[999]">
-              <div className="w-8 h-8 border-2 border-[#A53860] border-t-transparent rounded-full animate-spin" />
-              <span className="text-[#c4a0b0] text-sm font-mono">Loading safety data…</span>
-            </div>
-          )}
-        </div>
-
-        {/* ── CONTROL PANEL ── */}
-        <div className="w-full md:w-[280px] shrink-0 bg-[#1e0a14] border-t md:border-t-0 md:border-l border-[#A53860]/20 flex flex-col gap-3 p-3.5 md:overflow-y-auto">
-
-          {/* Panel Header */}
-          <div className="flex items-center justify-between pb-1 border-b border-[#A53860]/20">
-            <span className="text-white text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-1.5">
-              <span>⚙️</span> {isNavigating ? 'Live Navigation' : 'Map Options'}
-            </span>
-            <span className="text-[#FFA5AB] text-[10px] font-mono">
-              {isNavigating
-                ? '🟢 Active Stream'
-                : origin && destination
-                ? 'Ready to route'
-                : tapMode === 'origin'
-                ? '1. Tap start'
-                : '2. Tap end'}
-            </span>
-          </div>
-
-          {/* Origin → Destination pills */}
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2 bg-[#2a1020] border border-[#A53860]/30 rounded-xl px-3 py-2">
-              <span className="w-2 h-2 rounded-full bg-[#10B981] shrink-0 inline-block" />
-              <div className="flex-1 min-w-0">
-                <p className="text-[9px] font-mono text-[#c4a0b0] uppercase tracking-wider">Start Point</p>
-                <p className="text-[11px] font-mono text-white truncate">
-                  {origin ? `${origin.latitude.toFixed(5)}, ${origin.longitude.toFixed(5)}` : 'Click map or use "My Loc"'}
-                </p>
-              </div>
-              {origin && !isNavigating && (
-                <button
-                  type="button"
-                  onClick={() => { setOrigin(null); setRouteCoords([]); setRouteInfo(null); setTapMode('origin'); }}
-                  className="text-[#c4a0b0] hover:text-white text-xs px-1 cursor-pointer"
-                  title="Clear start"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 bg-[#2a1020] border border-[#A53860]/30 rounded-xl px-3 py-2">
-              <span className="w-2 h-2 rounded-full bg-[#E91E8C] shrink-0 inline-block" />
-              <div className="flex-1 min-w-0">
-                <p className="text-[9px] font-mono text-[#c4a0b0] uppercase tracking-wider">Destination</p>
-                <p className="text-[11px] font-mono text-white truncate">
-                  {destination ? `${destination.latitude.toFixed(5)}, ${destination.longitude.toFixed(5)}` : 'Click map to set destination'}
-                </p>
-              </div>
-              {destination && !isNavigating && (
-                <button
-                  type="button"
-                  onClick={() => { setDestination(null); setRouteCoords([]); setRouteInfo(null); setTapMode('destination'); }}
-                  className="text-[#c4a0b0] hover:text-white text-xs px-1 cursor-pointer"
-                  title="Clear destination"
-                >
-                  ✕
+                  <span>Find Route</span>
                 </button>
               )}
             </div>
           </div>
+        )}
 
-          {/* Avoid danger toggle (disabled while navigating) */}
-          {!isNavigating && (
-            <div className="flex items-center justify-between py-1.5 px-2 bg-[#2a1020]/60 rounded-xl border border-[#A53860]/20">
-              <span className="text-white text-xs font-semibold flex items-center gap-1.5">
-                <span>🛡</span> Avoid danger zones
+        {/* ── FLOATING TRIP SUMMARY & START JOURNEY CARD (When Route is Calculated) ── */}
+        {!isNavigating && routeCoords.length > 0 && routeInfo && (
+          <div className="absolute bottom-4 inset-x-3 sm:left-4 sm:right-auto sm:max-w-md z-[1000] flex justify-center pointer-events-none">
+            <div className="pointer-events-auto w-full bg-[#200816]/95 backdrop-blur-md border-2 border-emerald-500/60 rounded-2xl p-4 shadow-2xl space-y-3">
+              <div className="flex items-center justify-between gap-2 border-b border-[#f0c39c]/20 pb-2">
+                <div className="flex items-center gap-3 text-xs flex-wrap">
+                  <span className="flex items-center gap-1 font-bold text-white">
+                    <span>🚶</span> {formatDist(routeInfo.distance)}
+                  </span>
+                  <span className="text-[#FFA5AB]/40">·</span>
+                  <span className="flex items-center gap-1 font-bold text-white">
+                    <span>⏱</span> {routeInfo.time} min walk
+                  </span>
+                  <span className="text-[#FFA5AB]/40">·</span>
+                  <span className="font-bold text-emerald-400 flex items-center gap-1">
+                    <span>{routeInfo.warning ? '⚠️' : '🛡️'}</span>
+                    <span>{routeInfo.warning ? 'Alt Route' : 'Safe Corridor'}</span>
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  className="text-[#FFA5AB]/60 hover:text-white text-xs px-1 cursor-pointer"
+                  title="Clear route"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {routeInfo.warning && (
+                <p className="text-amber-300 text-[11px] bg-amber-500/15 border border-amber-500/40 rounded-xl px-3 py-1.5">
+                  ⚠ {routeInfo.warning}
+                </p>
+              )}
+
+              {/* Big, beautiful START SAFE JOURNEY button (Always visible, zero cutoff!) */}
+              <button
+                type="button"
+                onClick={handleStartJourney}
+                disabled={loading}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-400 text-white text-xs font-black uppercase tracking-wider shadow-lg shadow-emerald-700/50 transition-all cursor-pointer animate-pulse"
+              >
+                <span>🛡️</span>
+                <span>START SAFE JOURNEY</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── TURN-BY-TURN HUD (When Navigating) ── */}
+        {isNavigating && (
+          <div className="absolute top-3 inset-x-3 z-[1000] flex justify-center pointer-events-none">
+            <div className={`pointer-events-auto px-4 py-2.5 rounded-2xl backdrop-blur-md shadow-2xl border flex items-center gap-3 max-w-md w-full ${
+              isSosActive
+                ? 'bg-red-950/95 border-red-500 text-white'
+                : offRouteDistance > 65
+                ? 'bg-amber-950/95 border-amber-500 text-amber-200'
+                : 'bg-[#200816]/95 border-emerald-500/50 text-white'
+            }`}>
+              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-xl shrink-0">
+                {isSosActive ? '🚨' : offRouteDistance > 65 ? '⚠️' : '➡️'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-black uppercase tracking-wide">
+                  {isSosActive
+                    ? 'DISTRESS SOS ACTIVE'
+                    : offRouteDistance > 65
+                    ? `OFF SAFE CORRIDOR (~${Math.round(offRouteDistance)} m)`
+                    : distToManeuver > 0
+                    ? `In ${distToManeuver} m`
+                    : 'Follow Safe Corridor'}
+                </p>
+                <p className="text-[11px] text-[#FFA5AB]/80 truncate mt-0.5">
+                  {isSosActive
+                    ? 'Distress telemetry streaming to emergency contacts'
+                    : offRouteDistance > 65
+                    ? 'Please return to illuminated safe route'
+                    : activeManeuver?.instruction || 'Proceed towards your destination'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleTriggerSos}
+                className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition cursor-pointer shrink-0 shadow"
+              >
+                SOS
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── ACTIVE NAVIGATION CONTROL DOCK (Bottom, When Navigating) ── */}
+        {isNavigating && (
+          <div className="absolute bottom-4 inset-x-3 z-[1000] flex justify-center pointer-events-none">
+            <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-2 p-2 rounded-2xl bg-[#200816]/95 backdrop-blur-md border border-[#FFA5AB]/40 shadow-2xl">
+              <button
+                type="button"
+                onClick={() => handleShareJourney()}
+                className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-[#A53860] hover:bg-[#8c2e50] border border-[#FFA5AB]/50 text-white text-xs font-bold transition cursor-pointer"
+              >
+                <span>🔗</span>
+                <span>{copiedLink ? 'Link Copied!' : 'Share Live Tracking Link'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTriggerSos}
+                className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wider shadow transition cursor-pointer"
+              >
+                <span>🚨</span>
+                <span>Panic SOS</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleEndJourney}
+                className="flex items-center gap-1 py-2 px-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-[#FFA5AB] text-xs font-bold transition cursor-pointer"
+              >
+                End Journey
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── PIN MODE INSTRUCTION OVERLAY ── */}
+        {isPinMode && (
+          <div className="absolute inset-x-0 top-3 z-[1000] flex justify-center pointer-events-none">
+            <div className="px-4 py-2 bg-[#A53860] text-white text-xs font-bold font-mono rounded-full shadow-xl animate-pulse">
+              📍 Click anywhere on the map to drop your hazard pin
+            </div>
+          </div>
+        )}
+
+        {/* ── LOADING OVERLAY ── */}
+        {loadingZones && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#12040c]/80 z-[999]">
+            <div className="w-8 h-8 border-2 border-[#A53860] border-t-transparent rounded-full animate-spin" />
+            <span className="text-[#FFA5AB] text-sm font-mono">Loading Bhubaneswar safety data…</span>
+          </div>
+        )}
+
+        {/* ── OPTIONS & HAZARDS FLOATING DRAWER (Toggled by ⚙️) ── */}
+        {showOptions && (
+          <div className="absolute top-3 right-3 z-[1001] w-72 bg-[#200816]/98 backdrop-blur-md border-2 border-[#f0c39c] rounded-2xl p-4 shadow-2xl text-white space-y-3">
+            <div className="flex items-center justify-between border-b border-[#f0c39c]/30 pb-2">
+              <span className="text-xs font-bold font-mono uppercase tracking-wider text-white flex items-center gap-1.5">
+                <span>⚙️</span> Map Options
               </span>
               <button
+                type="button"
+                onClick={() => setShowOptions(false)}
+                className="text-[#FFA5AB]/70 hover:text-white text-xs cursor-pointer p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Avoid Danger Zones Toggle */}
+            <div className="flex items-center justify-between py-1 px-2 bg-black/30 rounded-xl border border-[#FFA5AB]/20">
+              <span className="text-xs font-semibold text-white flex items-center gap-1.5">
+                <span>🛡️</span> Avoid danger zones
+              </span>
+              <button
+                type="button"
                 onClick={() => setAvoidDanger((v) => !v)}
-                className={`relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer shrink-0 ${avoidDanger ? 'bg-[#10B981]' : 'bg-[#4a2535]'}`}
+                className={`relative w-10 h-5 rounded-full transition-colors duration-200 cursor-pointer shrink-0 ${
+                  avoidDanger ? 'bg-[#10B981]' : 'bg-gray-600'
+                }`}
                 role="switch"
                 aria-checked={avoidDanger}
               >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200 ${avoidDanger ? 'translate-x-5' : 'translate-x-0'}`} />
+                <span
+                  className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                    avoidDanger ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
               </button>
             </div>
-          )}
 
-          {/* Zone count */}
-          {backendOnline && dangerZones.length > 0 && (
-            <div className="px-3 py-2 bg-red-500/8 border border-red-500/20 rounded-lg">
-              <p className="text-red-400/85 text-[10px] font-mono">
-                ⚠ {dangerZones.length} high-risk zones · Bhubaneswar
-              </p>
-            </div>
-          )}
-
-          {/* Error */}
-          {errorMsg && (
-            <div className="px-3 py-2.5 bg-red-500/10 border border-red-500/30 rounded-lg">
-              <p className="text-red-400 text-[11px]">{errorMsg}</p>
-            </div>
-          )}
-
-          {/* Route stats / Nav metrics */}
-          {routeInfo && (
-            <div className="grid grid-cols-3 gap-1 bg-[#2a1020] border border-[#A53860]/30 rounded-xl p-3">
-              <div className="flex flex-col items-center gap-0.5">
-                <span className="text-sm">🚶</span>
-                <span className="text-white text-[12px] font-bold">{formatDist(routeInfo.distance)}</span>
-                <span className="text-[#c4a0b0] text-[8px] uppercase tracking-wider font-mono">dist</span>
+            {/* Danger Zone Polygon Stats */}
+            {backendOnline && dangerZones.length > 0 && (
+              <div className="px-3 py-2 bg-red-500/10 border border-red-500/30 rounded-xl">
+                <p className="text-red-300 text-[11px] font-mono leading-tight">
+                  ⚠ {dangerZones.length} high-risk zones active in Bhubaneswar
+                </p>
               </div>
-              <div className="flex flex-col items-center gap-0.5 border-x border-[#A53860]/20">
-                <span className="text-sm">⏱</span>
-                <span className="text-white text-[12px] font-bold">{routeInfo.time} min</span>
-                <span className="text-[#c4a0b0] text-[8px] uppercase tracking-wider font-mono">walk</span>
+            )}
+
+            {/* Error Messages */}
+            {errorMsg && (
+              <div className="px-3 py-2 bg-amber-500/15 border border-amber-500/40 rounded-xl">
+                <p className="text-amber-300 text-[11px] leading-tight">{errorMsg}</p>
               </div>
-              <div className="flex flex-col items-center gap-0.5">
-                <span className="text-sm">{isNavigating ? '📍' : routeInfo.warning ? '⚠' : '✅'}</span>
-                <span className="text-[12px] font-bold" style={{ color: isNavigating ? '#10B981' : routeInfo.warning ? '#F59E0B' : '#10B981' }}>
-                  {isNavigating ? 'Live' : routeInfo.warning ? 'Alt' : 'Safe'}
-                </span>
-                <span className="text-[#c4a0b0] text-[8px] uppercase tracking-wider font-mono">status</span>
-              </div>
-            </div>
-          )}
+            )}
 
-          {/* ── NAVIGATION ACTION CONTROLS ── */}
-          {isNavigating ? (
-            /* Active Navigation Panel */
-            <div className="flex flex-col gap-2 pt-1 border-t border-[#A53860]/20">
+            {/* Clear All Button */}
+            {(origin || destination) && (
               <button
-                onClick={() => handleShareJourney()}
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#2a1020] hover:bg-[#3d1830] border border-[#A53860]/50 text-white text-xs font-bold transition cursor-pointer"
+                type="button"
+                onClick={() => {
+                  handleClear();
+                  setShowOptions(false);
+                }}
+                className="w-full py-2 bg-red-500/15 hover:bg-red-500/25 border border-red-500/40 text-red-300 rounded-xl text-xs font-bold transition cursor-pointer"
               >
-                <span>🔗</span> {copiedLink ? 'Tracking Link Copied!' : 'Share Live Tracking Link'}
+                ✕ Clear Selected Route
               </button>
-
-              <button
-                onClick={handleTriggerSos}
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-red-700/40 transition cursor-pointer"
-              >
-                <span>🚨</span> Panic Emergency SOS
-              </button>
-
-              <button
-                onClick={handleEndJourney}
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-[#FFA5AB] text-xs font-bold transition cursor-pointer"
-              >
-                End Safe Journey
-              </button>
-            </div>
-          ) : (
-            /* Pre-Navigation Actions */
-            <div className="flex flex-col gap-2">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={handleUseMyLocation}
-                  disabled={locLoading}
-                  className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl border border-[#A53860]/40 bg-[#A53860]/10 text-[#FFA5AB] text-[11px] font-semibold hover:bg-[#A53860]/20 transition-all cursor-pointer disabled:opacity-60"
-                >
-                  {locLoading ? (
-                    <span className="w-3.5 h-3.5 border-2 border-[#FFA5AB] border-t-transparent rounded-full animate-spin inline-block" />
-                  ) : (
-                    '📍'
-                  )}
-                  <span className="truncate">My Location</span>
-                </button>
-
-                {(origin || destination) ? (
-                  <button
-                    onClick={handleClear}
-                    className="flex items-center justify-center gap-1 py-2.5 px-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-[11px] font-semibold hover:bg-red-500/20 transition-all cursor-pointer"
-                  >
-                    ✕ Clear All
-                  </button>
-                ) : (
-                  <div className="flex items-center justify-center text-[10px] font-mono text-[#c4a0b0]/60 text-center py-2.5">
-                    Tap map to start
-                  </div>
-                )}
-              </div>
-
-              {/* Find Safe Route button */}
-              <button
-                onClick={handleGetRoute}
-                disabled={loading || !origin || !destination}
-                className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold tracking-wide transition-all cursor-pointer ${
-                  origin && destination
-                    ? 'bg-[#A53860] border border-[#FFA5AB]/60 text-white hover:bg-[#8c2e50] shadow-lg shadow-[#A53860]/30'
-                    : 'bg-[#4a2535] border border-transparent text-[#c4a0b0] cursor-not-allowed'
-                }`}
-              >
-                {loading ? (
-                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
-                ) : (
-                  '🧭'
-                )}
-                Find Safe Route
-              </button>
-
-              {/* START SAFE JOURNEY (Appears as soon as route is calculated!) */}
-              {routeCoords.length > 0 && (
-                <button
-                  onClick={handleStartJourney}
-                  disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 border border-emerald-400 text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-emerald-700/40 transition-all cursor-pointer animate-pulse"
-                >
-                  <span>🛡️</span> Start Safe Journey
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Backend offline help */}
-          {!backendOnline && !loadingZones && (
-            <div className="bg-[#2a1020] rounded-xl p-3 border border-[#A53860]/30 mt-1">
-              <p className="text-red-400 font-bold text-[12px] mb-1.5">Backend Offline</p>
-              <p className="text-[#c4a0b0] text-[10px] font-mono leading-5">
-                Ensure Docker is running:{'\n'}$ docker-compose up
-              </p>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
