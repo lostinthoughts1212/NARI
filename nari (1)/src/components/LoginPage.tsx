@@ -5,9 +5,10 @@ import { supabase } from '../lib/supabaseClient';
 
 interface LoginPageProps {
   onNavigateBack: () => void;
+  onContinueGuest?: () => void;
 }
 
-export default function LoginPage({ onNavigateBack }: LoginPageProps) {
+export default function LoginPage({ onNavigateBack, onContinueGuest }: LoginPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -95,6 +96,18 @@ export default function LoginPage({ onNavigateBack }: LoginPageProps) {
             )}
             {isLoading ? 'Connecting...' : 'Continue with Google'}
           </button>
+
+          {onContinueGuest && (
+            <div className="mt-4 pt-4 border-t border-[#f0c39c]/60">
+              <button
+                type="button"
+                onClick={onContinueGuest}
+                className="w-full py-3 bg-[#A53860]/10 hover:bg-[#A53860]/20 border border-[#A53860]/40 text-[#450920] font-bold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span>🗺️</span> Enter Directly as Guest (Open Live Map)
+              </button>
+            </div>
+          )}
         </motion.div>
 
         {/* Security Watermark */}

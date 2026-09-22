@@ -195,13 +195,19 @@ export default function App() {
   }
 
   if (currentPage === 'landing') {
-    return <LandingPage onNavigateToLogin={() => setCurrentPage('login')} />;
+    return (
+      <LandingPage
+        onNavigateToLogin={() => setCurrentPage('login')}
+        onLaunchApp={() => setCurrentPage('app')}
+      />
+    );
   }
 
   if (currentPage === 'login') {
     return (
       <LoginPage 
         onNavigateBack={() => setCurrentPage('landing')}
+        onContinueGuest={() => setCurrentPage('app')}
       />
     );
   }

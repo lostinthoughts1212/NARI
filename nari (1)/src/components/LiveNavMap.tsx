@@ -192,6 +192,24 @@ function HazardFocuser({ target }: { target: LatLng | null }) {
   return null;
 }
 
+// Automatically recalculate Leaflet map dimensions on mobile devices & viewport shifts
+function MapResizer() {
+  const map = useMap();
+  useEffect(() => {
+    map.invalidateSize();
+    const t1 = setTimeout(() => map.invalidateSize(), 250);
+    const t2 = setTimeout(() => map.invalidateSize(), 800);
+    const onResize = () => map.invalidateSize();
+    window.addEventListener('resize', onResize);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [map]);
+  return null;
+}
+
 // ── Props interface ────────────────────────────────────────────────────────────
 export interface LiveNavMapProps {
   hazards?: Hazard[];
@@ -523,13 +541,18 @@ export default function LiveNavMap({
     km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(2)} km`;
 
   return (
-    <div className={`flex flex-col rounded-2xl overflow-hidden border shadow-sm bg-[#0f0814] md:h-[clamp(540px,75vh,780px)] ${
+    <div className={`flex flex-col rounded-2xl overflow-hidden border shadow-sm bg-[#0f0814] h-[640px] sm:h-[680px] md:h-[clamp(540px,75vh,780px)] min-h-[560px] ${
       isSosActive ? 'border-red-500 ring-4 ring-red-500/50' : 'border-[#f0c39c]'
     }`}>
 
       {/* Leaflet cursor + animation overrides */}
       <style>{`
-        .leaflet-container { cursor: ${isPinMode ? 'cell' : 'crosshair'} !important; }
+        .leaflet-container { 
+          cursor: ${isPinMode ? 'cell' : 'crosshair'} !important; 
+          width: 100% !important;
+          height: 100% !important;
+          min-height: 320px !important;
+        }
         .leaflet-control-attribution { font-size: 9px !important; opacity: 0.5; }
         @keyframes ping {
           0%   { transform: scale(1);   opacity: 1; }
@@ -591,16 +614,18 @@ export default function LiveNavMap({
 
       {/* ── MAP CONTAINER ── */}
       <div className="flex-1 flex flex-col md:flex-row min-h-0 relative">
-        <div className="flex-1 relative min-h-[380px] md:min-h-0">
+        <div className="flex-1 relative h-[360px] sm:h-[420px] md:h-full min-h-[320px]">
           <MapContainer
             center={BBSR_CENTER}
             zoom={13}
             className="w-full h-full"
+            style={{ width: '100%', height: '100%', minHeight: '320px' }}
             zoomControl={false}
           >
+            <MapResizer />
             <TileLayer
-              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               maxZoom={19}
             />
 
