@@ -56,6 +56,12 @@ export default function LoginPage({ onNavigateBack, onGuestLogin }: LoginPagePro
       <div className="w-full max-w-md my-auto">
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8 space-y-2">
+          <div className="flex items-center justify-center space-x-2 mb-1">
+            <div className="w-2.5 h-2.5 rounded-full bg-[#A53860] animate-pulse glow-primary"></div>
+            <span className="text-xl sm:text-2xl font-serif tracking-tight italic text-[#450920] flex items-baseline gap-1.5 font-bold">
+              NARI<span className="text-[9px] uppercase tracking-[0.25em] font-mono not-italic text-[#A53860] font-bold">System</span>
+            </span>
+          </div>
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#F9DBBD] border border-[#f0c39c] text-[9px] uppercase tracking-widest text-[#A53860] mb-2 font-mono font-bold shadow-sm">
             <Sparkles className="w-3 h-3 text-[#A53860]" />
             NARI AUTH GATEWAY

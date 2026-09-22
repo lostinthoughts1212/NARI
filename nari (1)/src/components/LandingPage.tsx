@@ -101,17 +101,21 @@ export default function LandingPage({ onNavigateToLogin }: LandingPageProps) {
       <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[500px] bg-[#FFA5AB]/[0.12] blur-[160px] rounded-full pointer-events-none"></div>
       
       {/* Landing Header Navigation Bar */}
-      <header className="sticky top-0 z-50 border-b border-[#f0c39c] bg-[#F5EBE0]/95 backdrop-blur-md px-6 py-4 md:px-12 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#A53860] animate-pulse glow-primary"></div>
-          <span className="text-lg md:text-xl font-serif tracking-tight text-[#450920] flex items-center gap-2 font-bold">
-            NARI <span className="text-[10px] uppercase font-mono tracking-[0.2em] text-[#A53860] hidden sm:inline font-bold">Route Investigation</span>
-          </span>
+      <header className="sticky top-0 z-50 border-b border-[#f0c39c] bg-[#F5EBE0]/95 backdrop-blur-md px-4 py-3 md:px-12 md:py-4 flex items-center justify-between shadow-sm">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center space-x-2 shrink-0">
+            <div className="w-2.5 h-2.5 rounded-full bg-[#A53860] animate-pulse glow-primary"></div>
+            <span className="text-lg md:text-2xl font-serif tracking-tight italic text-[#450920] flex items-baseline gap-1.5 font-bold">
+              NARI<span className="text-[9px] uppercase tracking-[0.25em] font-mono not-italic text-[#A53860] font-bold">System</span>
+            </span>
+          </div>
+          <div className="hidden md:block h-6 w-[1px] bg-[#f0c39c]"></div>
+          <p className="hidden md:block text-[10px] uppercase tracking-[0.16em] text-[#450920] font-bold">Next-generation AI powered Route Investigation</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={onNavigateToLogin}
-            className="px-5 py-2 bg-[#A53860] text-white font-bold text-[10px] uppercase tracking-widest rounded-full hover:bg-[#8c2e50] transition-all cursor-pointer shadow-sm"
+            className="px-5 py-2 bg-[#A53860] text-white font-bold text-[10px] uppercase tracking-widest rounded-full hover:bg-[#8c2e50] transition-all cursor-pointer shadow-sm touch-target"
           >
             Access Portal
           </button>
@@ -119,7 +123,7 @@ export default function LandingPage({ onNavigateToLogin }: LandingPageProps) {
       </header>
 
       {/* Hero Section */}
-      <section className="relative pt-16 pb-16 px-6 md:px-12 max-w-7xl mx-auto flex flex-col items-center text-center">
+      <section className="relative pt-12 pb-16 px-4 md:px-12 max-w-7xl mx-auto flex flex-col items-center text-center">
         {/* Top Tag */}
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
@@ -138,7 +142,7 @@ export default function LandingPage({ onNavigateToLogin }: LandingPageProps) {
           transition={{ duration: 0.8, delay: 0.1 }}
           className="text-4xl sm:text-6xl lg:text-7xl font-serif tracking-tight text-[#450920] mb-6 leading-tight max-w-5xl font-bold"
         >
-          NARI <br />
+          <span className="italic">NARI</span> <br />
           <span className="italic text-[#A53860] font-medium font-serif">Intelligent. Autonomous. Peerless.</span>
         </motion.h1>
 

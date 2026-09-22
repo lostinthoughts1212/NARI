@@ -906,7 +906,7 @@ export default function LiveNavMap({
             <span className="text-white font-black text-xs">N</span>
           </div>
           <div className="flex items-baseline gap-1.5 truncate">
-            <span className="text-[#450920] font-bold text-xs">NARI Nav</span>
+            <span className="text-[#450920] font-bold text-xs font-serif italic tracking-wide">NARI Nav</span>
             <span className="text-[#A53860] text-[10px] font-semibold hidden sm:inline">· Safe Routes Bhubaneswar</span>
           </div>
         </div>
