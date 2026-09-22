@@ -2,6 +2,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getDatabase,
   ref,
+  set,
   onValue,
   off,
   update,
@@ -85,6 +86,57 @@ export function subscribeToJourney(
   });
 
   return () => off(journeyRef);
+}
+
+/**
+ * Creates a new active journey session in Firebase under /journeys/{journeyId}
+ */
+export async function createJourneySession(session: LiveJourneySession): Promise<void> {
+  const journeyRef = ref(db, `journeys/${session.id}`);
+  await set(journeyRef, session);
+}
+
+/**
+ * Updates the user's current GPS location and journey progression
+ */
+export async function updateLiveLocation(
+  journeyId: string,
+  location: LiveLocationData,
+  extra?: {
+    offRouteDistance?: number;
+    currentManeuverIndex?: number;
+    remainingDistanceKm?: number;
+    remainingTimeMin?: number;
+    status?: JourneyStatus;
+  }
+): Promise<void> {
+  const journeyRef = ref(db, `journeys/${journeyId}`);
+  const payload: Record<string, any> = {
+    currentLocation: location,
+    updatedAt: Date.now(),
+  };
+
+  if (extra?.offRouteDistance !== undefined) payload.offRouteDistance = extra.offRouteDistance;
+  if (extra?.currentManeuverIndex !== undefined) payload.currentManeuverIndex = extra.currentManeuverIndex;
+  if (extra?.remainingDistanceKm !== undefined) payload.remainingDistanceKm = extra.remainingDistanceKm;
+  if (extra?.remainingTimeMin !== undefined) payload.remainingTimeMin = extra.remainingTimeMin;
+  if (extra?.status !== undefined) payload.status = extra.status;
+
+  await update(journeyRef, payload);
+}
+
+/**
+ * Updates the journey status (e.g., 'active', 'off_route', 'sos', 'completed')
+ */
+export async function updateJourneyStatus(
+  journeyId: string,
+  status: JourneyStatus
+): Promise<void> {
+  const journeyRef = ref(db, `journeys/${journeyId}`);
+  await update(journeyRef, {
+    status,
+    updatedAt: Date.now(),
+  });
 }
 
 /**

@@ -31,6 +31,7 @@ export interface RouteLeg {
     length: number; // km
     time: number;   // seconds
   };
+  maneuvers?: any[];
 }
 
 export interface RouteTrip {
@@ -55,6 +56,7 @@ export interface RouteInfo {
   distance: number; // km
   time: number;     // minutes
   warning?: string;
+  maneuvers?: any[];
 }
 
 // ── API Functions ─────────────────────────────────────────────────────────────
