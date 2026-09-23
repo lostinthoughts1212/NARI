@@ -26,6 +26,20 @@ def get_high_risk_polygons(csv_path: str) -> List[List[List[float]]]:
     try:
         df = pd.read_csv(csv_path)
         
+        # If custom street corridor polygons are provided via polygon_coords, use them directly
+        if 'polygon_coords' in df.columns:
+            import json
+            polygons = []
+            for _, row in df.iterrows():
+                try:
+                    coords = json.loads(row['polygon_coords'])
+                    if coords:
+                        polygons.append(coords)
+                except Exception as ex:
+                    print(f"Error parsing polygon_coords: {ex}")
+            if polygons:
+                return polygons
+
         # Filter for high risk
         high_risk_df = df[(df['severity'] >= 4) | (df['risk_score'] >= 80) | (df['lighting'] == 'Poor')].copy()
         

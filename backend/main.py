@@ -18,8 +18,9 @@ app.add_middleware(
 
 import os
 
-# Load polygons once at startup
-CSV_PATH = os.environ.get("CSV_PATH", "../bhubaneswar_women_safe_route_synthetic_dataset.csv")
+# Load polygons once at startup (prioritize curated danger zones if available)
+default_csv = "../danger zones data.csv" if os.path.exists("../danger zones data.csv") else ("danger zones data.csv" if os.path.exists("danger zones data.csv") else "../bhubaneswar_women_safe_route_synthetic_dataset.csv")
+CSV_PATH = os.environ.get("CSV_PATH", default_csv)
 HIGH_RISK_POLYGONS = get_high_risk_polygons(CSV_PATH)
 VALHALLA_URL = os.environ.get("VALHALLA_URL", "http://127.0.0.1:8002/route")
 

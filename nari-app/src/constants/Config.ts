@@ -7,7 +7,10 @@ import { Platform } from 'react-native';
  * iOS Simulator    → http://localhost:8000
  * Web              → http://localhost:8000
  */
-export const API_BASE_URL: string = 'https://binding-placement-hydraulic-pastor.trycloudflare.com';
+export const API_BASE_URL: string =
+  Platform.OS === 'android'
+    ? 'http://10.0.2.2:8000'
+    : 'http://localhost:8000';
 
 /**
  * Public Web Tracker URL sent to emergency contacts in WhatsApp/SMS.

@@ -8,11 +8,47 @@
  */
 
 // Use VITE_NAV_API_URL if set, or Cloudflare tunnel on Netlify, or local Vite proxy.
-const NAV_API_BASE =
+// Use VITE_NAV_API_URL if set, or local Vite proxy / direct localhost:8000
+const PRIMARY_NAV_API_BASE =
   import.meta.env.VITE_NAV_API_URL ||
   (typeof window !== 'undefined' && window.location.hostname.includes('netlify.app')
-    ? 'https://binding-placement-hydraulic-pastor.trycloudflare.com'
-    : '/nav-api');
+    ? ''
+    : 'http://localhost:8000');
+
+const CANDIDATE_BASES = Array.from(
+  new Set([
+    PRIMARY_NAV_API_BASE,
+    'http://localhost:8000',
+    '/nav-api',
+  ].filter(Boolean))
+);
+
+let activeBaseIndex = 0;
+
+async function resilientFetch(path: string, init?: RequestInit): Promise<Response> {
+  let lastError: any = null;
+
+  for (let i = 0; i < CANDIDATE_BASES.length; i++) {
+    const idx = (activeBaseIndex + i) % CANDIDATE_BASES.length;
+    const base = CANDIDATE_BASES[idx];
+    const cleanBase = base.endsWith('/') ? base.slice(0, -1) : base;
+    const url = `${cleanBase}${path.startsWith('/') ? path : '/' + path}`;
+
+    try {
+      const resp = await fetch(url, init);
+      if (resp.ok || resp.status === 400 || resp.status === 422) {
+        activeBaseIndex = idx;
+        return resp;
+      }
+      lastError = new Error(`HTTP ${resp.status} from ${url}`);
+    } catch (err) {
+      lastError = err;
+      console.warn(`[NARI API] Attempt failed for ${url}:`, err);
+    }
+  }
+
+  throw lastError || new Error(`All backend candidates failed for ${path}`);
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -62,7 +98,7 @@ export interface RouteInfo {
 // ── API Functions ─────────────────────────────────────────────────────────────
 
 export async function fetchSafeRoute(req: RouteRequest): Promise<RouteResponse> {
-  const response = await fetch(`${NAV_API_BASE}/route`, {
+  const response = await resilientFetch('/route', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(req),
@@ -75,7 +111,7 @@ export async function fetchSafeRoute(req: RouteRequest): Promise<RouteResponse> 
 }
 
 export async function fetchPolygons(): Promise<PolygonsResponse> {
-  const response = await fetch(`${NAV_API_BASE}/polygons`);
+  const response = await resilientFetch('/polygons');
   if (!response.ok) {
     throw new Error(`Polygons error: ${response.status}`);
   }
@@ -83,7 +119,7 @@ export async function fetchPolygons(): Promise<PolygonsResponse> {
 }
 
 export async function healthCheck(): Promise<{ status: string; polygons_loaded: number }> {
-  const response = await fetch(`${NAV_API_BASE}/health`);
+  const response = await resilientFetch('/health');
   if (!response.ok) throw new Error('Backend offline');
   return response.json();
 }

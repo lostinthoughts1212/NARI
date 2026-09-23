@@ -466,6 +466,7 @@ export default function LiveNavMap({
           maneuvers: resp.trip.legs[0].maneuvers,
         });
         setFallbackMode(false);
+        setBackendOnline(true);
       }
       if (resp.alternates) {
         const alts = (resp.alternates as RouteInfo[])
@@ -473,7 +474,8 @@ export default function LiveNavMap({
           .map((a: any) => decodePolyline(a.trip.legs[0].shape));
         setAltRoutes(alts);
       }
-    } catch {
+    } catch (err) {
+      console.warn('[LiveNavMap] Routing failed, falling back to local corridor:', err);
       // Graceful client-side safe routing fallback
       const fallback = generateFallbackSafeRoute(start, end, avoid);
       setRouteCoords(fallback.routeCoords);
@@ -920,9 +922,9 @@ export default function LiveNavMap({
           )}
 
           {/* Engine status indicator */}
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/80 border border-[#f0c39c] text-[9px] sm:text-[10px] font-mono text-[#450920]">
-            <span className={`w-1.5 h-1.5 rounded-full ${backendOnline ? 'bg-[#10B981] animate-pulse' : 'bg-emerald-600'}`} />
-            <span className="hidden xs:inline">{backendOnline ? 'Cloud AI' : 'Safe Engine'}</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/90 border border-[#f0c39c] text-[10px] font-mono text-[#450920] shadow-sm">
+            <span className={`w-2 h-2 rounded-full ${backendOnline ? 'bg-[#10B981] animate-pulse' : 'bg-amber-500'}`} />
+            <span className="font-bold">{backendOnline ? 'Valhalla Online' : 'Offline Mode'}</span>
           </div>
 
           {/* Quick Presets Toggle */}
@@ -1287,10 +1289,18 @@ export default function LiveNavMap({
                 </button>
               </div>
 
-              {fallbackMode && (
-                <div className="text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-300 rounded-lg px-2 py-1 font-semibold flex items-center justify-between">
+              {fallbackMode ? (
+                <div className="text-[10px] text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-2 py-1 font-semibold flex items-center justify-between">
                   <span>✨ Offline Safety Corridor Active</span>
-                  <span className="text-[9px] text-emerald-600 font-mono">Bhubaneswar Smart Nav</span>
+                  <span className="text-[9px] text-amber-600 font-mono">Local Corridors</span>
+                </div>
+              ) : (
+                <div className="text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-300 rounded-lg px-2 py-1 font-semibold flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                    Valhalla Street Engine Active
+                  </span>
+                  <span className="text-[9px] text-emerald-700 font-mono">Avoiding Danger Zones</span>
                 </div>
               )}
 

@@ -28,10 +28,11 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - ./danger zones data.csv:/danger zones data.csv
       - ./bhubaneswar_women_safe_route_synthetic_dataset.csv:/bhubaneswar_women_safe_route_synthetic_dataset.csv
     depends_on:
       valhalla:
         condition: service_healthy
     environment:
       - VALHALLA_URL=http://valhalla:8002/route
-      - CSV_PATH=/bhubaneswar_women_safe_route_synthetic_dataset.csv
+      - CSV_PATH=/danger zones data.csv

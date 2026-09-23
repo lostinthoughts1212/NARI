@@ -63,9 +63,8 @@ cd "c:\Users\satvi\Downloads\navsys_project\nari (1)"
 npm install
 npm run dev
 ```
-- **Local URL**: [http://localhost:3000](http://localhost:3000)
-- **Login credentials**: Username `nari_guardian_1`, Password `secure2026` (or any credentials)
-- **Public Emergency Tracking Route**: [http://localhost:3000/?track=<journeyId>](http://localhost:3000/?track=test) (no login required for emergency contacts!)
+- **Local URL**: [http://localhost:5173](http://localhost:5173) (or `http://localhost:5173/?demo=true` for 1-tap demo access)
+- **Public Emergency Tracking Route**: [http://localhost:5173/?track=<journeyId>](http://localhost:5173/?track=test) (no login required for emergency contacts!)
 
 ---
 
