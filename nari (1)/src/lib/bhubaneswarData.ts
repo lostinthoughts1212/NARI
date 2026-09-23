@@ -917,6 +917,55 @@ export const BHUBANESWAR_FALLBACK_POLYGONS: LatLng[][] = [
     { latitude: 20.260864, longitude: 85.797629 },
     { latitude: 20.260166, longitude: 85.797790 },
     { latitude: 20.259480, longitude: 85.797565 }
+  ],
+  // 24. Master Canteen / Kharvel Nagar - Mali Sahi Trackside Alley Maze (Pocket)
+  [
+    { latitude: 20.267400, longitude: 85.841100 },
+    { latitude: 20.267400, longitude: 85.841900 },
+    { latitude: 20.268200, longitude: 85.841900 },
+    { latitude: 20.268200, longitude: 85.841100 }
+  ],
+  // 25. Laxmisagar / Jharpada - Haladipadia Slum Alley Pocket (Pocket)
+  [
+    { latitude: 20.277700, longitude: 85.855700 },
+    { latitude: 20.277700, longitude: 85.856700 },
+    { latitude: 20.278700, longitude: 85.856700 },
+    { latitude: 20.278700, longitude: 85.855700 }
+  ],
+  // 26. Salia Sahi / Jaydev Vihar - Salia Sahi Trinath Basti Pocket (Pocket)
+  [
+    { latitude: 20.304000, longitude: 85.815500 },
+    { latitude: 20.304000, longitude: 85.816500 },
+    { latitude: 20.305000, longitude: 85.816500 },
+    { latitude: 20.305000, longitude: 85.815500 }
+  ],
+  // 27. Nayapalli - Nayapalli Behera Sahi Gali Cluster (Pocket)
+  [
+    { latitude: 20.301100, longitude: 85.812100 },
+    { latitude: 20.301100, longitude: 85.812900 },
+    { latitude: 20.301900, longitude: 85.812900 },
+    { latitude: 20.301900, longitude: 85.812100 }
+  ],
+  // 28. Old Town - Old Town Kedargouri Backlane Maze (Pocket)
+  [
+    { latitude: 20.242600, longitude: 85.833100 },
+    { latitude: 20.242600, longitude: 85.833900 },
+    { latitude: 20.243400, longitude: 85.833900 },
+    { latitude: 20.243400, longitude: 85.833100 }
+  ],
+  // 29. Khandagiri / Bharatpur - Bharatpur Basti Forest-Periphery Pocket (Pocket)
+  [
+    { latitude: 20.260500, longitude: 85.782500 },
+    { latitude: 20.260500, longitude: 85.783500 },
+    { latitude: 20.261500, longitude: 85.783500 },
+    { latitude: 20.261500, longitude: 85.782500 }
+  ],
+  // 30. Unit-4 / Bhauma Nagar - Unit-4 Haat Rear Waste Alley Pocket (Pocket)
+  [
+    { latitude: 20.266600, longitude: 85.825600 },
+    { latitude: 20.266600, longitude: 85.826400 },
+    { latitude: 20.267400, longitude: 85.826400 },
+    { latitude: 20.267400, longitude: 85.825600 }
   ]
 ];
 
